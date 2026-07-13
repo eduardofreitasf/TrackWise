@@ -1,0 +1,436 @@
+\documentclass[11pt, a4paper]{article}
+
+% Language and encoding
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Typography - Using Helvetica/Arial clone for a clean, modern sans-serif look
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Page layout
+\usepackage[margin=25mm, footskip=10mm]{geometry}
+\usepackage{parskip} % Modern paragraph layout (no indent, space between paragraphs)
+
+% Colors
+\usepackage[dvipsnames]{xcolor}
+\definecolor{PrimaryColor}{HTML}{1E3A8A}      % Deep Blue (from TrackWise brand)
+\definecolor{SecondaryColor}{HTML}{06B6D4}    % Electric Cyan (from TrackWise brand)
+\definecolor{TextColor}{HTML}{2D3748}         % Dark charcoal
+\definecolor{LightBG}{HTML}{F8FAFC}           % Soft White (from TrackWise brand)
+\definecolor{BorderColor}{HTML}{E2E8F0}       % Soft border grey
+
+% Set text color globally
+\color{TextColor}
+
+% Section styling (Modern and clean)
+\usepackage{titlesec}
+\titleformat{\section}{\color{PrimaryColor}\normalfont\large\bfseries}{\thesection}{1em}{}[{\color{SecondaryColor}\titlerule[1pt]}]
+\titleformat{\subsection}{\color{SecondaryColor}\normalfont\normalsize\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{TextColor}\normalfont\normalsize\itshape}{\thesubsubsection}{1em}{}
+
+% Headers and footers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\fancyhead[L]{\small\color{gray}\itshape TrackWise - Project Proposal}
+\fancyhead[R]{\small\color{gray}\nouppercase{\leftmark}}
+\fancyfoot[C]{\small\color{gray}\thepage}
+
+% Lists, Tables, and Hyperlinks
+\usepackage{enumitem}
+\setlist[itemize]{topsep=2pt, itemsep=2pt, parsep=2pt}
+\setlist[enumerate]{topsep=2pt, itemsep=2pt, parsep=2pt}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=SecondaryColor,
+	urlcolor=SecondaryColor,
+	citecolor=SecondaryColor
+}
+
+% Command for Requirements ID (Professional styling)
+\newcommand{\reqid}[1]{\textbf{\color{PrimaryColor}#1}}
+
+% --- TITLE & METADATA ---
+\title{
+	\vspace{-15mm}
+	\rule{\linewidth}{2pt} \\ [0.4cm]
+	\LARGE \textbf{\color{PrimaryColor}TrackWise: Personal Asset Management System} \\
+	\large \textit{\color{SecondaryColor}Project Proposition \& Requirements Document} \\ [0.2cm]
+	\rule{\linewidth}{1pt}
+}
+\author{
+	\textbf{Prepared by:} Eduardo \\
+	\textbf{Role:} Project Lead / System Architect
+}
+\date{\today}
+
+\begin{document}
+	
+	\maketitle
+	
+	\begin{abstract}
+		\noindent This document establishes a formal framework and foundational specification for \textbf{TrackWise}, a comprehensive personal asset management system built with Java and Spring Boot. TrackWise addresses the challenge of managing multiple life assets—cars, properties, subscriptions, payments, and associated documents—in a fragmented and scattered manner. The system provides users with a unified, intelligent platform to track asset details, monitor financial commitments, manage recurring and one-time payments, organize critical documents, and receive timely notifications. This proposal outlines the system's vision, functional and non-functional requirements, user roles, and operational architecture, serving as the single source of truth (SSoT) for engineering and design workflows prior to development.
+	\end{abstract}
+	
+	\thispagestyle{empty}
+	\clearpage
+	
+	\tableofcontents
+	\clearpage
+	
+	\section{Introduction}
+	\subsection{Purpose of the Document}
+	This document serves as the formal Project Proposition and Requirements Specification for \textbf{TrackWise}. It outlines what the system will accomplish to streamline personal asset management, providing users with clarity, control, and organization over their financial commitments and valuable assets.
+	
+	\subsection{Project Scope \& Boundaries}
+	\begin{itemize}
+		\item \textbf{In-Scope:} Multi-section asset management (assets, subscriptions, payments, documents), notification system for alerts and reminders, user dashboard with reports and analytics, multi-user support with data isolation, administrative backoffice for user and system management.
+		\item \textbf{Out-of-Scope:} Bank data integration, external payment processing systems, real-time market data, investment portfolio management, direct payment processing or transaction execution, integration with third-party financial APIs.
+	\end{itemize}
+	
+	\subsection{Definitions, Acronyms, and Abbreviations}
+	\begin{center}
+		\small
+		\begin{tabular}{p{0.2\linewidth} p{0.75\linewidth}}
+			\toprule
+			\textbf{Term / Acronym} & \textbf{Definition} \\
+			\midrule
+			\reqid{FR} & Functional Requirement \\
+			\reqid{NFR} & Non-Functional Requirement \\
+			\reqid{Asset} & A valuable item or property owned by a user (e.g., car, property, appliance). \\
+			\reqid{Subscription} & A recurring service subscription with periodic payments (e.g., Netflix, Spotify). \\
+			\reqid{Payment} & A financial transaction, recurring or one-time, associated with an asset or standalone. \\
+			\reqid{Document} & A digital file or record associated with an asset (e.g., registration, insurance policy, receipt). \\
+			\reqid{Notification} & An alert sent to a user regarding upcoming payments, maintenance, or system events. \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	
+	
+	\section{System Vision \& High-Level Overview}
+	\subsection{Problem Statement \& Business Value}
+	Most users manage their personal assets, subscriptions, and payments through scattered systems: spreadsheets, email reminders, bank statements, calendar notes, and physical documents. This fragmented approach leads to forgotten subscriptions, missed payment deadlines, poor decision-making on asset retention, and lost time searching for critical documents. TrackWise centralizes all personal asset data—from asset metadata and maintenance histories to subscription renewals and payment schedules—into a single, intelligent, and organized platform. The business value includes reduced financial waste (eliminating forgotten subscriptions), improved decision-making (understanding total asset costs), minimized missed deadlines (timely notifications), and effortless document organization (searchable digital storage).
+	
+	\subsection{Stakeholders \& Target Audience}
+	\begin{enumerate}
+		\item \textbf{End Users:} Individuals seeking to organize and monitor their personal assets, subscriptions, and payments.
+		\item \textbf{System Administrators:} Backoffice staff responsible for user account management, system monitoring, and statistical reporting (without access to user data).
+		\item \textbf{Feature Users:} Users who actively manage multiple asset categories and rely on notifications and analytics.
+		\item \textbf{Casual Users:} Users who occasionally log in to check specific asset or payment information.
+	\end{enumerate}
+	
+	
+	\section{Functional Requirements (FR)}
+	
+	\subsection{1. Asset Management}
+	\begin{itemize}
+		\item \reqid{FR-101: Asset Registration \& Metadata} \\
+		\textbf{Description:} Users must be able to create and register new assets with core metadata (name, category, purchase date, purchase price, description, current status). The system shall support flexible asset categorization (cars, properties, appliances, electronics, etc.) without hard-coded categories. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-102: Asset History \& Depreciation Tracking} \\
+		\textbf{Description:} The system must maintain a complete history of past bills, maintenance records, and financial movements associated with each asset. Users shall be able to view depreciation trends and total spending per asset over time. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-103: Asset Future Commitments} \\
+		\textbf{Description:} The system shall track scheduled future bills and maintenance events for assets, providing a forward-looking view of upcoming costs (e.g., scheduled inspections, warranty expirations). \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-104: Asset Lifecycle Management} \\
+		\textbf{Description:} Users must be able to update asset status (active, archived, sold, disposed), allowing them to retire assets from active tracking while preserving historical data. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-105: Asset Categorization \& Tagging} \\
+		\textbf{Description:} The system shall allow users to assign custom tags and categories to assets for flexible filtering, grouping, and organization. \\
+		\textbf{Priority:} Medium
+	\end{itemize}
+	
+	\subsection{2. Subscription Management}
+	\begin{itemize}
+		\item \reqid{FR-201: Subscription Registration} \\
+		\textbf{Description:} Users must be able to create subscriptions with recurring payment schedules (daily, weekly, monthly, quarterly, annually, or custom intervals). Each subscription shall capture the service name, cost per cycle, start date, and renewal date. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-202: Subscription Renewal Tracking} \\
+		\textbf{Description:} The system shall automatically calculate and display next renewal dates, total annual spending per subscription, and historical renewal records. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-203: Subscription Status \& Cancellation} \\
+		\textbf{Description:} Users must be able to mark subscriptions as active, paused, or cancelled, with the system tracking cancellation dates and reasons for future reference. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-204: Multi-Service Subscriptions} \\
+		\textbf{Description:} The system shall support bundled subscriptions (e.g., family plan covering multiple users) with the ability to allocate costs across family members if desired. \\
+		\textbf{Priority:} Low
+	\end{itemize}
+	
+	\subsection{3. Payment Management}
+	\begin{itemize}
+		\item \reqid{FR-301: Payment Registration} \\
+		\textbf{Description:} Users must be able to create and log both one-time and recurring payments, associating them with specific assets or subscriptions. Each payment shall include amount, date, category, description, and optional attachments. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-302: Payment History} \\
+		\textbf{Description:} The system shall maintain a complete payment history per asset/subscription, enabling users to view past transactions, payment dates, and amounts. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-303: Payment Categorization} \\
+		\textbf{Description:} Payments shall be categorizable (maintenance, insurance, fuel, registration, etc.) to support filtering, sorting, and aggregate analytics. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-304: Recurring Payment Scheduling} \\
+		\textbf{Description:} The system shall track scheduled recurring payments with flexible intervals (weekly, bi-weekly, monthly, quarterly, annually) and alert users of upcoming due dates. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-305: Payment Status Tracking} \\
+		\textbf{Description:} Users must be able to mark payments as pending, paid, overdue, or failed, maintaining a clear view of financial obligations. \\
+		\textbf{Priority:} Medium
+	\end{itemize}
+	
+	\subsection{4. Document Management}
+	\begin{itemize}
+		\item \reqid{FR-401: Document Upload \& Storage} \\
+		\textbf{Description:} Users must be able to upload and store digital documents (registrations, insurance policies, receipts, inspection reports, warranties) associated with assets or payments. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-402: Document Organization} \\
+		\textbf{Description:} The system shall allow users to organize documents by asset, category, and date, with searchable metadata and file previews. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-403: Document Expiration Tracking} \\
+		\textbf{Description:} The system shall track document expiration dates (insurance policies, warranties, registrations) and alert users when renewal is approaching. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-404: Document Retrieval} \\
+		\textbf{Description:} Users must be able to quickly search, filter, and retrieve documents via full-text search and metadata queries. \\
+		\textbf{Priority:} High
+	\end{itemize}
+	
+	\subsection{5. Notification System}
+	\begin{itemize}
+		\item \reqid{FR-501: Payment Reminders} \\
+		\textbf{Description:} The system shall send notifications to users for upcoming payment due dates (configurable lead time: 1 day, 3 days, 1 week before due date). \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-502: Subscription Renewal Alerts} \\
+		\textbf{Description:} The system shall notify users before subscription renewals, allowing them to review charges and cancel if desired. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-503: Document Expiration Alerts} \\
+		\textbf{Description:} The system shall send alerts for documents approaching expiration (insurance, warranties, registrations, inspections). \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-504: Maintenance Reminders} \\
+		\textbf{Description:} The system shall alert users of scheduled maintenance events and asset-related milestones (e.g., service due dates). \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-505: Notification Preferences} \\
+		\textbf{Description:} Users shall be able to configure notification frequency, channels (in-app, email), and notification types (enable/disable specific alert categories). \\
+		\textbf{Priority:} Medium
+	\end{itemize}
+	
+	\subsection{6. Dashboard \& Analytics}
+	\begin{itemize}
+		\item \reqid{FR-601: User Dashboard} \\
+		\textbf{Description:} Users shall have a personalized dashboard displaying summary statistics: total assets, active subscriptions, upcoming payments, and recent activities. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-602: Financial Reports} \\
+		\textbf{Description:} The system shall provide reports showing total monthly and annual spending, spending by asset category, and subscription costs. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-603: Payment Calendar} \\
+		\textbf{Description:} Users shall have access to a visual payment calendar displaying upcoming payments, subscriptions renewals, and financial deadlines. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-604: Asset Analytics} \\
+		\textbf{Description:} The system shall provide analytics on per-asset spending, depreciation trends, and cost-of-ownership analysis. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-605: Report Export} \\
+		\textbf{Description:} Users shall be able to export reports in common formats (PDF, CSV) for external use or archival. \\
+		\textbf{Priority:} Low
+	\end{itemize}
+	
+	\subsection{7. Multi-User Management}
+	\begin{itemize}
+		\item \reqid{FR-701: User Registration \& Authentication} \\
+		\textbf{Description:} The system shall support secure user registration, login, and password management. Each user account is independent and isolated from other users. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-702: Data Isolation} \\
+		\textbf{Description:} The system must ensure complete data isolation between users; no user can access, view, or modify another user's assets, payments, subscriptions, or documents. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-703: Account Settings} \\
+		\textbf{Description:} Users shall be able to manage profile information, change passwords, update email addresses, and configure account preferences. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-704: Account Deletion} \\
+		\textbf{Description:} Users shall be able to request account deletion, which shall permanently remove all associated data after a grace period. \\
+		\textbf{Priority:} Low
+	\end{itemize}
+	
+	\subsection{8. Administrative Backoffice}
+	\begin{itemize}
+		\item \reqid{FR-801: User Account Management} \\
+		\textbf{Description:} Administrators shall be able to view active user accounts, their creation dates, last login times, and account status (active, suspended, deleted). \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-802: Administrative Actions} \\
+		\textbf{Description:} Administrators shall be able to suspend, reactivate, or soft-delete user accounts, along with sending system notifications to users. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-803: System Statistics} \\
+		\textbf{Description:} Administrators shall have access to high-level system statistics: total users, active users, system uptime, and resource usage metrics. \\
+		\textbf{Priority:} Medium
+		
+		\item \reqid{FR-804: Data Protection \& Audit} \\
+		\textbf{Description:} The system shall maintain audit logs of administrative actions and enforce strict data access controls; administrators cannot view user asset data. \\
+		\textbf{Priority:} High
+		
+		\item \reqid{FR-805: System Configuration} \\
+		\textbf{Description:} Administrators shall be able to configure system-wide settings (notification defaults, maintenance mode, feature toggles). \\
+		\textbf{Priority:} Low
+	\end{itemize}
+	
+	
+	\section{Non-Functional Requirements (NFR)}
+	
+	\small
+	\begin{center}
+		\renewcommand{\arraystretch}{1.4}
+		\begin{tabular}{p{0.15\linewidth} p{0.6\linewidth} p{0.18\linewidth}}
+			\toprule
+			\textbf{ID} & \textbf{Requirement Specification} & \textbf{Category} \\
+			\midrule
+			\reqid{NFR-001} & The system shall support concurrent users with response times under 2 seconds for standard operations (CRUD operations, dashboard loading). & Performance \\
+			\reqid{NFR-002} & The system must be available 99.5\% of the time, with scheduled maintenance limited to off-peak hours. & Reliability \\
+			\reqid{NFR-003} & All user data (assets, payments, documents, subscriptions) must be encrypted at rest and in transit using industry-standard protocols (TLS 1.2+, AES-256). & Security \\
+			\reqid{NFR-004} & The system shall comply with GDPR and local data privacy regulations; users retain full control over their data and can request export or deletion. & Compliance \\
+			\reqid{NFR-005} & The user interface shall be responsive and functional on desktop, tablet, and mobile devices (minimum screen width 320px). & Usability \\
+			\reqid{NFR-006} & The system shall support scalability to handle 100,000+ concurrent users without degradation in performance. & Scalability \\
+			\reqid{NFR-007} & All administrative actions must be logged and auditable for compliance and security investigation purposes. & Auditability \\
+			\reqid{NFR-008} & The notification system shall deliver alerts within 5 minutes of the trigger event (payment due, subscription renewal). & Performance \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\normalsize
+	
+	
+	\section{System Architecture \& Key Modules}
+	
+	\subsection{Core Modules}
+	\begin{itemize}
+		\item \textbf{Asset Management Module:} Handles asset registration, lifecycle management, history tracking, and metadata storage.
+		\item \textbf{Subscription Module:} Manages subscription registrations, renewal scheduling, and status tracking.
+		\item \textbf{Payment Module:} Tracks one-time and recurring payments, payment history, and financial calculations.
+		\item \textbf{Document Module:} Manages document uploads, organization, metadata, and expiration tracking.
+		\item \textbf{Notification Engine:} Evaluates notification triggers (upcoming payments, expirations) and delivers alerts via in-app and email channels.
+		\item \textbf{Dashboard \& Analytics Module:} Aggregates user data to generate reports, visualizations, and financial insights.
+		\item \textbf{User Management Module:} Handles user registration, authentication, authorization, and account management.
+		\item \textbf{Administrative Backoffice:} Provides tools for system administrators to manage users and view system statistics.
+	\end{itemize}
+	
+	\subsection{Technology Stack}
+	\begin{itemize}
+		\item \textbf{Backend:} Java with Spring Boot framework for RESTful API development.
+		\item \textbf{Database:} Relational database (PostgreSQL or MySQL) for structured data storage, with proper indexing and partitioning for scalability.
+		\item \textbf{Authentication:} JWT-based token authentication with secure password hashing (bcrypt).
+		\item \textbf{File Storage:} Cloud-based or on-premise file storage for document management (with encryption and access controls).
+		\item \textbf{Notification System:} Scheduled background jobs for notification evaluation; email service for delivery.
+		\item \textbf{Frontend:} Responsive web application (framework agnostic) with modern UI aligned to TrackWise brand identity.
+	\end{itemize}
+	
+	
+	\section{System Features \& User Stories}
+	
+	\subsection{Key System Capabilities}
+	\begin{itemize}
+		\item \textbf{Unified Asset Dashboard:} A comprehensive dashboard displaying all user assets, subscriptions, and upcoming financial obligations at a glance.
+		\item \textbf{Smart Notification Engine:} Proactive alerts for upcoming payments, subscription renewals, and document expirations, customizable by user preference.
+		\item \textbf{Flexible Asset Framework:} Support for unlimited asset categories without hard-coded constraints, allowing scalability to unforeseen asset types.
+		\item \textbf{Financial Analytics:} Detailed reports on spending patterns, asset costs, and subscription expenses with visual trends over time.
+		\item \textbf{Centralized Document Repository:} A searchable, organized digital storage for all critical documents associated with assets and payments.
+		\item \textbf{Complete Data Isolation:} Strict multi-tenant architecture ensuring users cannot access or view other users' data.
+	\end{itemize}
+	
+	\subsection{User Stories}
+	
+	\subsubsection{End User Stories}
+	\begin{itemize}
+		\item \textit{As an end user}, I want to \textbf{register a new car with purchase details and maintenance history} so that I can track all associated costs and maintenance schedules.
+		\item \textit{As an end user}, I want to \textbf{receive a notification 3 days before a subscription renewal} so that I can review the charge and cancel if desired.
+		\item \textit{As an end user}, I want to \textbf{view a calendar of all upcoming payments across assets and subscriptions} so that I can plan my monthly budget.
+		\item \textit{As an end user}, I want to \textbf{upload insurance and registration documents for my property} so that I have centralized access to critical documents.
+		\item \textit{As an end user}, I want to \textbf{see a monthly spending report by asset category} so that I understand where my money is going.
+		\item \textit{As an end user}, I want to \textbf{mark a paid payment as completed} so that my payment history remains accurate.
+		\item \textit{As an end user}, I want to \textbf{archive a sold car while keeping its historical data} so that my active asset list remains clean.
+		\item \textit{As an end user}, I want to \textbf{receive an alert when a warranty or insurance policy is expiring} so that I can renew before it lapses.
+	\end{itemize}
+	
+	\subsubsection{Administrator Stories}
+	\begin{itemize}
+		\item \textit{As an administrator}, I want to \textbf{view active user accounts and their last login dates} so that I can identify inactive accounts or suspicious activity.
+		\item \textit{As an administrator}, I want to \textbf{suspend a user account due to terms of service violation} so that unauthorized access is prevented.
+		\item \textit{As an administrator}, I want to \textbf{view system-wide statistics (total users, active subscriptions)}, without accessing individual user data, so that I can monitor system health.
+	\item \textit{As an administrator}, I want to \textbf{receive alerts when system resource usage exceeds thresholds} so that I can address scalability issues proactively.
+\end{itemize}
+
+
+\section{Constraints, Assumptions \& Dependencies}
+
+\subsection{Technical Constraints}
+\begin{itemize}
+	\item The system must be developed using Java with Spring Boot framework.
+	\item File upload sizes are limited by available storage capacity; large documents must be compressed or split.
+	\item Email delivery for notifications depends on availability of a reliable SMTP service.
+\end{itemize}
+
+\subsection{Assumptions}
+\begin{itemize}
+	\item Users will have a stable internet connection for standard operations; offline functionality is not required.
+	\item Users have valid email addresses for receiving notifications.
+	\item Administrative staff are trusted and properly trained in data protection practices.
+	\item Users will manually input all asset, payment, and subscription data; no automatic bank or external API integration will be performed.
+\end{itemize}
+
+\subsection{Dependencies}
+\begin{itemize}
+	\item Availability of SMTP service for email notifications.
+	\item Cloud or on-premise file storage infrastructure for document management.
+	\item Database availability and performance for real-time data queries.
+	\item User devices capable of rendering responsive web interfaces.
+\end{itemize}
+
+
+\section{Future Roadmap \& Enhancements}
+
+\subsection{Phase 2: Advanced Features}
+\begin{itemize}
+	\item \textbf{Bank Account Linking (Optional):} Integration with banking APIs to auto-import transactions and reconcile payments (compliance and security review required).
+	\item \textbf{Shared Assets (Family/Team):} Support for shared asset ownership with role-based permissions, allowing family members to collaboratively manage shared assets.
+	\item \textbf{Mobile Native App:} Native iOS and Android applications with offline capabilities and push notifications.
+	\item \textbf{Predictive Analytics:} Machine learning-based spending forecasts and asset maintenance predictions.
+\end{itemize}
+
+\subsection{Phase 3: Ecosystem Integration}
+\begin{itemize}
+	\item \textbf{Third-Party Integrations:} Integration with popular services (calendar apps, email, payment systems) for enhanced interoperability.
+	\item \textbf{Marketplace Integration:} Optional partnerships with insurance providers, maintenance services, or marketplaces for in-app purchasing.
+	\item \textbf{Advanced Reporting:} Custom report builders, scheduled report delivery, and business intelligence dashboards for users with advanced tracking needs.
+\end{itemize}
+
+\subsection{Phase 4: Enterprise Offerings}
+\begin{itemize}
+	\item \textbf{White-Label Solutions:} Customizable white-label versions for B2B customers (financial advisors, insurance companies).
+	\item \textbf{API Marketplace:} Public API for third-party developers to build integrations and extensions.
+\end{itemize}
+
+\end{document}
