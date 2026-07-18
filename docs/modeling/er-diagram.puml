@@ -1,0 +1,344 @@
+@startuml TrackWise_ER_Diagram
+
+skinparam linetype ortho
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+
+title **TrackWise -- Entity-Relationship Diagram**
+
+' ============================================================
+' COLOR SCHEME
+' ============================================================
+skinparam entity {
+  BackgroundColor<<core>> #E8F0FE
+  BorderColor<<core>> #1E3A8A
+  BackgroundColor<<financial>> #FFF8E1
+  BorderColor<<financial>> #F59E0B
+  BackgroundColor<<support>> #F0FDF4
+  BorderColor<<support>> #16A34A
+  BackgroundColor<<system>> #FDF2F8
+  BorderColor<<system>> #DB2777
+  BackgroundColor<<junction>> #F5F5F5
+  BorderColor<<junction>> #9CA3AF
+}
+
+
+' ============================================================
+' CORE ENTITIES
+' ============================================================
+
+entity "user" as USER <<core>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * email : VARCHAR(255) <<UNIQUE>>
+  * password_hash : VARCHAR(255)
+  * first_name : VARCHAR(100)
+  * last_name : VARCHAR(100)
+  * default_currency : CHAR(3)
+  * status : ENUM
+  last_login_at : TIMESTAMP
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "asset" as ASSET <<core>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * name : VARCHAR(255)
+  description : TEXT
+  category_id : BIGINT <<FK>>
+  purchase_date : DATE
+  purchase_price : DECIMAL(12,2)
+  purchase_currency : CHAR(3)
+  current_value : DECIMAL(12,2)
+  current_value_currency : CHAR(3)
+  * status : ENUM
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+
+' ============================================================
+' FINANCIAL ENTITIES
+' ============================================================
+
+entity "subscription" as SUBSCRIPTION <<financial>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  asset_id : BIGINT <<FK>>
+  * name : VARCHAR(255)
+  description : TEXT
+  * cost_per_cycle : DECIMAL(12,2)
+  * currency : CHAR(3)
+  * start_date : DATE
+  next_renewal_date : DATE
+  * status : ENUM
+  cancelled_at : TIMESTAMP
+  cancel_reason : TEXT
+  recurrence_rule_id : BIGINT <<FK>>
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "payment" as PAYMENT <<financial>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  asset_id : BIGINT <<FK>>
+  subscription_id : BIGINT <<FK>>
+  * amount : DECIMAL(12,2)
+  * currency : CHAR(3)
+  payment_date : DATE
+  due_date : DATE
+  category_id : BIGINT <<FK>>
+  description : TEXT
+  * status : ENUM
+  * is_recurring : BOOLEAN
+  recurrence_rule_id : BIGINT <<FK>>
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "recurrence_rule" as RECURRENCE <<financial>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * frequency : ENUM
+  * interval : INT
+  * start_date : DATE
+  end_date : DATE
+  * next_occurrence : DATE
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+}
+
+
+' ============================================================
+' SUPPORT ENTITIES
+' ============================================================
+
+entity "document" as DOCUMENT <<support>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  asset_id : BIGINT <<FK>>
+  payment_id : BIGINT <<FK>>
+  subscription_id : BIGINT <<FK>>
+  * name : VARCHAR(255)
+  description : TEXT
+  * file_path : VARCHAR(512)
+  * file_type : VARCHAR(100)
+  * file_size : BIGINT
+  expiration_date : DATE
+  * uploaded_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "category" as CATEGORY <<support>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * name : VARCHAR(100)
+  parent_id : BIGINT <<FK>>
+  * entity_type : ENUM
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "tag" as TAG <<support>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * name : VARCHAR(50)
+  color : VARCHAR(7)
+  * created_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+
+' ============================================================
+' SYSTEM ENTITIES
+' ============================================================
+
+entity "notification" as NOTIFICATION <<system>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * type : ENUM
+  * title : VARCHAR(255)
+  * message : TEXT
+  * is_read : BOOLEAN
+  read_at : TIMESTAMP
+  * trigger_date : TIMESTAMP
+  reference_type : ENUM
+  reference_id : BIGINT
+  * channel : ENUM
+  sent_at : TIMESTAMP
+  * created_at : TIMESTAMP
+  deleted_at : TIMESTAMP
+}
+
+entity "notification_preference" as NOTIF_PREF <<system>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * user_id : BIGINT <<FK>>
+  * notification_type : ENUM
+  * enabled : BOOLEAN
+  * lead_time_days : INT
+  * channel : ENUM
+  * created_at : TIMESTAMP
+  * updated_at : TIMESTAMP
+}
+
+entity "audit_log" as AUDIT <<system>> {
+  * **id** : BIGINT <<PK>>
+  --
+  * actor_id : BIGINT <<FK>>
+  * action : VARCHAR(100)
+  target_entity_type : VARCHAR(50)
+  target_entity_id : BIGINT
+  details : TEXT
+  ip_address : VARCHAR(45)
+  * created_at : TIMESTAMP
+}
+
+
+' ============================================================
+' JUNCTION TABLES (N:M)
+' ============================================================
+
+entity "asset_tag" as ASSET_TAG <<junction>> {
+  * **asset_id** : BIGINT <<PK, FK>>
+  * **tag_id** : BIGINT <<PK, FK>>
+}
+
+entity "subscription_tag" as SUB_TAG <<junction>> {
+  * **subscription_id** : BIGINT <<PK, FK>>
+  * **tag_id** : BIGINT <<PK, FK>>
+}
+
+entity "payment_tag" as PAY_TAG <<junction>> {
+  * **payment_id** : BIGINT <<PK, FK>>
+  * **tag_id** : BIGINT <<PK, FK>>
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- User owns everything ---
+USER ||--o{ ASSET : "owns"
+USER ||--o{ SUBSCRIPTION : "owns"
+USER ||--o{ PAYMENT : "makes"
+USER ||--o{ DOCUMENT : "uploads"
+USER ||--o{ NOTIFICATION : "receives"
+USER ||--o{ NOTIF_PREF : "configures"
+USER ||--o{ CATEGORY : "defines"
+USER ||--o{ TAG : "defines"
+USER ||--o{ AUDIT : "performed by"
+
+' --- Asset relationships ---
+ASSET ||--o{ PAYMENT : "has payments"
+ASSET ||--o{ DOCUMENT : "has documents"
+ASSET ||--o{ SUBSCRIPTION : "optionally linked"
+
+' --- Subscription relationships ---
+SUBSCRIPTION ||--o{ PAYMENT : "generates"
+SUBSCRIPTION ||--o{ DOCUMENT : "has documents"
+
+' --- Payment relationships ---
+PAYMENT ||--o{ DOCUMENT : "has receipts"
+
+' --- Category (hierarchical) ---
+CATEGORY ||--o{ ASSET : "categorizes"
+CATEGORY ||--o{ PAYMENT : "categorizes"
+CATEGORY ||--o{ CATEGORY : "parent of"
+
+' --- RecurrenceRule (shared scheduling) ---
+RECURRENCE ||--o{ SUBSCRIPTION : "defines schedule"
+RECURRENCE ||--o{ PAYMENT : "defines schedule"
+
+' --- Tag junction tables ---
+ASSET ||--o{ ASSET_TAG : ""
+TAG ||--o{ ASSET_TAG : ""
+SUBSCRIPTION ||--o{ SUB_TAG : ""
+TAG ||--o{ SUB_TAG : ""
+PAYMENT ||--o{ PAY_TAG : ""
+TAG ||--o{ PAY_TAG : ""
+
+
+' ============================================================
+' NOTES
+' ============================================================
+
+note bottom of RECURRENCE
+  Shared scheduling entity.
+  Used by both subscriptions and
+  recurring payments to avoid
+  duplicating recurrence logic.
+end note
+
+note bottom of DOCUMENT
+  Polymorphic ownership:
+  belongs to user, optionally
+  linked to asset, payment,
+  or subscription via nullable FKs.
+end note
+
+note bottom of NOTIFICATION
+  Polymorphic reference:
+  reference_type + reference_id
+  point to the source entity
+  that triggered the notification.
+end note
+
+note bottom of CATEGORY
+  Hierarchical via self-referencing
+  parent_id. Scoped to entity_type
+  (ASSET or PAYMENT) to keep
+  classification domains separate.
+end note
+
+note right of AUDIT
+  Immutable log. No soft delete.
+  Records all admin actions
+  for compliance and security.
+end note
+
+
+' ============================================================
+' LEGEND
+' ============================================================
+
+legend bottom right
+  |= Symbol |= Meaning |
+  | * field | Mandatory (NOT NULL) |
+  | field | Nullable |
+  | <<PK>> | Primary Key |
+  | <<FK>> | Foreign Key |
+  | ENUM | See data dictionary |
+  | CHAR(3) on currency fields | ISO 4217 code |
+  |= ENUM Name |= Values |
+  | user.status | ACTIVE, SUSPENDED, DELETED |
+  | asset.status | ACTIVE, ARCHIVED, SOLD, DISPOSED |
+  | subscription.status | ACTIVE, PAUSED, CANCELLED |
+  | payment.status | PENDING, PAID, OVERDUE, FAILED |
+  | recurrence_rule.frequency | DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY, CUSTOM |
+  | category.entity_type | ASSET, PAYMENT |
+  | notification.type | PAYMENT_REMINDER, SUBSCRIPTION_RENEWAL, DOCUMENT_EXPIRATION, MAINTENANCE_REMINDER, SYSTEM |
+  | notification.reference_type | ASSET, SUBSCRIPTION, PAYMENT, DOCUMENT |
+  | notification.channel | IN_APP, EMAIL |
+  | notification_preference.channel | IN_APP, EMAIL, BOTH |
+end legend
+
+@enduml
