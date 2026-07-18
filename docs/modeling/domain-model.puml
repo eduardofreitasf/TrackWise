@@ -1,0 +1,275 @@
+@startuml TrackWise_Domain_Model
+
+skinparam linetype ortho
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam nodesep 60
+skinparam ranksep 50
+
+title **TrackWise -- Domain Model**
+
+' ============================================================
+' STYLING
+' ============================================================
+skinparam class {
+  BackgroundColor<<concept>> #E8F0FE
+  BorderColor<<concept>> #1E3A8A
+  BackgroundColor<<value>> #FFF8E1
+  BorderColor<<value>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+}
+
+
+' ============================================================
+' ENUMERATIONS
+' ============================================================
+
+enum UserStatus <<enum>> {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AssetStatus <<enum>> {
+  ACTIVE
+  ARCHIVED
+  SOLD
+  DISPOSED
+}
+
+enum SubscriptionStatus <<enum>> {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+enum PaymentStatus <<enum>> {
+  PENDING
+  PAID
+  OVERDUE
+  FAILED
+}
+
+enum Frequency <<enum>> {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+  CUSTOM
+}
+
+enum CategoryScope <<enum>> {
+  ASSET
+  PAYMENT
+}
+
+enum NotificationType <<enum>> {
+  PAYMENT_REMINDER
+  SUBSCRIPTION_RENEWAL
+  DOCUMENT_EXPIRATION
+  MAINTENANCE_REMINDER
+  SYSTEM
+}
+
+enum NotificationChannel <<enum>> {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+
+' ============================================================
+' VALUE OBJECTS
+' ============================================================
+
+class Money <<value>> {
+  amount : Decimal
+  currency : CurrencyCode
+}
+
+note right of Money
+  ISO 4217 currency code.
+  Used for all monetary
+  amounts in the domain.
+end note
+
+
+' ============================================================
+' DOMAIN CONCEPTS
+' ============================================================
+
+class User <<concept>> {
+  email
+  firstName
+  lastName
+  defaultCurrency : CurrencyCode
+  status : UserStatus
+  lastLoginAt
+}
+
+class Asset <<concept>> {
+  name
+  description
+  purchaseDate
+  purchasePrice : Money
+  currentValue : Money
+  status : AssetStatus
+}
+
+class Subscription <<concept>> {
+  name
+  description
+  costPerCycle : Money
+  startDate
+  nextRenewalDate
+  status : SubscriptionStatus
+  cancelledAt
+  cancelReason
+}
+
+class Payment <<concept>> {
+  description
+  amount : Money
+  paymentDate
+  dueDate
+  status : PaymentStatus
+  isRecurring
+}
+
+class Document <<concept>> {
+  name
+  description
+  filePath
+  fileType
+  fileSize
+  expirationDate
+}
+
+class RecurrenceRule <<concept>> {
+  frequency : Frequency
+  interval
+  startDate
+  endDate
+  nextOccurrence
+}
+
+class Category <<concept>> {
+  name
+  scope : CategoryScope
+}
+
+class Tag <<concept>> {
+  name
+  color
+}
+
+class Notification <<concept>> {
+  type : NotificationType
+  title
+  message
+  isRead
+  readAt
+  triggerDate
+  channel : NotificationChannel
+  sentAt
+}
+
+class NotificationPreference <<concept>> {
+  notificationType : NotificationType
+  enabled
+  leadTimeDays
+  channel : NotificationChannel
+}
+
+class AuditLog <<concept>> {
+  action
+  targetEntityType
+  targetEntityId
+  details
+  ipAddress
+  timestamp
+}
+
+
+' ============================================================
+' ASSOCIATIONS
+' ============================================================
+
+' --- User ownership ---
+User "1" -- "0..*" Asset : owns >
+User "1" -- "0..*" Subscription : owns >
+User "1" -- "0..*" Payment : makes >
+User "1" -- "0..*" Document : uploads >
+User "1" -- "0..*" Notification : receives >
+User "1" -- "0..*" NotificationPreference : configures >
+User "1" -- "0..*" Category : defines >
+User "1" -- "0..*" Tag : defines >
+User "1" -- "0..*" AuditLog : performs >
+
+' --- Asset associations ---
+Asset "0..1" -- "0..*" Payment : associated with <
+Asset "0..1" -- "0..*" Document : associated with <
+Asset "0..1" -- "0..*" Subscription : optionally linked <
+
+' --- Subscription associations ---
+Subscription "0..1" -- "0..*" Payment : generates >
+Subscription "0..1" -- "0..*" Document : associated with <
+
+' --- Payment associations ---
+Payment "0..1" -- "0..*" Document : has receipts >
+
+' --- Categorization ---
+Category "0..1" -- "0..*" Asset : categorizes >
+Category "0..1" -- "0..*" Payment : categorizes >
+Category "0..1" -- "0..*" Category : parent of >
+
+' --- Tagging (many-to-many) ---
+Asset "0..*" -- "0..*" Tag : tagged with >
+Subscription "0..*" -- "0..*" Tag : tagged with >
+Payment "0..*" -- "0..*" Tag : tagged with >
+
+' --- Scheduling ---
+RecurrenceRule "0..1" -- "0..*" Subscription : follows <
+RecurrenceRule "0..1" -- "0..*" Payment : follows <
+
+
+' ============================================================
+' NOTES
+' ============================================================
+
+note bottom of Notification
+  Polymorphic reference:
+  a notification can refer
+  to any domain entity
+  (Asset, Payment, Subscription,
+  Document) as its trigger source.
+end note
+
+note bottom of Category
+  Hierarchical: categories can
+  have sub-categories via
+  self-referencing parent.
+  Scoped to ASSET or PAYMENT.
+end note
+
+note bottom of Document
+  Belongs to a User. Optionally
+  associated with an Asset,
+  Payment, or Subscription.
+  Can exist standalone
+  (user-level document).
+end note
+
+note bottom of RecurrenceRule
+  Shared scheduling abstraction.
+  Defines how often a subscription
+  renews or a payment recurs.
+  One rule can be referenced by
+  multiple subscriptions/payments.
+end note
+
+@enduml
