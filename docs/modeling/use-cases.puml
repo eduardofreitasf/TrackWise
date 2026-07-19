@@ -1,0 +1,220 @@
+@startuml TrackWise_Use_Cases
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecaseFontSize 11
+
+skinparam usecase {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+skinparam rectangle {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- Use Case Diagram**
+
+
+' ============================================================
+' ACTORS
+' ============================================================
+
+actor "End User" as EU
+actor "Administrator" as ADMIN
+actor "Notification\nScheduler" as SCHEDULER <<system>>
+actor "Email\nService" as EMAIL <<external>>
+
+
+' ============================================================
+' SYSTEM BOUNDARY
+' ============================================================
+
+rectangle "TrackWise System" {
+
+  ' --- Authentication ---
+  rectangle "Authentication" {
+    usecase "Register Account" as UC_REG
+    usecase "Login" as UC_LOGIN
+    usecase "Logout" as UC_LOGOUT
+  }
+
+  ' --- Account Management ---
+  rectangle "Account Management" {
+    usecase "Manage Profile" as UC_PROFILE
+    usecase "Change Password" as UC_CHGPWD
+    usecase "Delete Account" as UC_DELACC
+  }
+
+  ' --- Asset Management ---
+  rectangle "Asset Management" {
+    usecase "Register Asset" as UC_ASSET_REG
+    usecase "View Asset Details" as UC_ASSET_VIEW
+    usecase "View Asset History" as UC_ASSET_HIST
+    usecase "View Future\nCommitments" as UC_ASSET_FUT
+    usecase "Update Asset Status" as UC_ASSET_STATUS
+  }
+
+  ' --- Subscription Management ---
+  rectangle "Subscription Management" {
+    usecase "Register Subscription" as UC_SUB_REG
+    usecase "View Subscription\nDetails" as UC_SUB_VIEW
+    usecase "View Renewal\nSchedule" as UC_SUB_RENEW
+    usecase "Update Subscription\nStatus" as UC_SUB_STATUS
+  }
+
+  ' --- Payment Management ---
+  rectangle "Payment Management" {
+    usecase "Register Payment" as UC_PAY_REG
+    usecase "View Payment History" as UC_PAY_HIST
+    usecase "Schedule Recurring\nPayment" as UC_PAY_SCHED
+    usecase "Update Payment\nStatus" as UC_PAY_STATUS
+  }
+
+  ' --- Document Management ---
+  rectangle "Document Management" {
+    usecase "Upload Document" as UC_DOC_UP
+    usecase "Search Documents" as UC_DOC_SEARCH
+    usecase "View Document\nDetails" as UC_DOC_VIEW
+  }
+
+  ' --- Classification ---
+  rectangle "Classification" {
+    usecase "Manage Categories" as UC_CAT
+    usecase "Manage Tags" as UC_TAG
+  }
+
+  ' --- Dashboard & Analytics ---
+  rectangle "Dashboard & Analytics" {
+    usecase "View Dashboard" as UC_DASH
+    usecase "View Financial\nReports" as UC_REPORTS
+    usecase "View Payment\nCalendar" as UC_CALENDAR
+    usecase "View Asset\nAnalytics" as UC_ANALYTICS
+    usecase "Export Report" as UC_EXPORT
+  }
+
+  ' --- Notification Management ---
+  rectangle "Notification Management" {
+    usecase "View Notifications" as UC_NOTIF_VIEW
+    usecase "Configure\nPreferences" as UC_NOTIF_CONF
+    usecase "Process Notification\nTriggers" as UC_NOTIF_PROC
+    usecase "Send Email\nNotification" as UC_NOTIF_EMAIL
+  }
+
+  ' --- Administration ---
+  rectangle "Administration" {
+    usecase "View User Accounts" as UC_ADM_USERS
+    usecase "Suspend User" as UC_ADM_SUSP
+    usecase "Reactivate User" as UC_ADM_REACT
+    usecase "View System\nStatistics" as UC_ADM_STATS
+    usecase "View Audit Logs" as UC_ADM_AUDIT
+    usecase "Configure System\nSettings" as UC_ADM_CONF
+  }
+
+  ' --- Shared ---
+  usecase "Define Recurrence\nRule" as UC_RECURRENCE
+  usecase "Assign Category" as UC_ASSIGN_CAT
+  usecase "Assign Tags" as UC_ASSIGN_TAG
+  usecase "Attach Document" as UC_ATTACH_DOC
+}
+
+
+' ============================================================
+' END USER ASSOCIATIONS
+' ============================================================
+
+EU -- UC_REG
+EU -- UC_LOGIN
+EU -- UC_LOGOUT
+
+EU -- UC_PROFILE
+EU -- UC_CHGPWD
+EU -- UC_DELACC
+
+EU -- UC_ASSET_REG
+EU -- UC_ASSET_VIEW
+EU -- UC_ASSET_HIST
+EU -- UC_ASSET_FUT
+EU -- UC_ASSET_STATUS
+
+EU -- UC_SUB_REG
+EU -- UC_SUB_VIEW
+EU -- UC_SUB_RENEW
+EU -- UC_SUB_STATUS
+
+EU -- UC_PAY_REG
+EU -- UC_PAY_HIST
+EU -- UC_PAY_SCHED
+EU -- UC_PAY_STATUS
+
+EU -- UC_DOC_UP
+EU -- UC_DOC_SEARCH
+EU -- UC_DOC_VIEW
+
+EU -- UC_CAT
+EU -- UC_TAG
+
+EU -- UC_DASH
+EU -- UC_REPORTS
+EU -- UC_CALENDAR
+EU -- UC_ANALYTICS
+EU -- UC_EXPORT
+
+EU -- UC_NOTIF_VIEW
+EU -- UC_NOTIF_CONF
+
+
+' ============================================================
+' ADMINISTRATOR ASSOCIATIONS
+' ============================================================
+
+ADMIN -- UC_LOGIN
+ADMIN -- UC_LOGOUT
+ADMIN -- UC_ADM_USERS
+ADMIN -- UC_ADM_SUSP
+ADMIN -- UC_ADM_REACT
+ADMIN -- UC_ADM_STATS
+ADMIN -- UC_ADM_AUDIT
+ADMIN -- UC_ADM_CONF
+
+
+' ============================================================
+' SYSTEM ACTOR ASSOCIATIONS
+' ============================================================
+
+SCHEDULER -- UC_NOTIF_PROC
+UC_NOTIF_EMAIL -- EMAIL
+
+
+' ============================================================
+' INCLUDE / EXTEND RELATIONSHIPS
+' ============================================================
+
+' --- Recurrence rule is included when scheduling ---
+UC_SUB_REG ..> UC_RECURRENCE : <<include>>
+UC_PAY_SCHED ..> UC_RECURRENCE : <<include>>
+
+' --- Classification can be done during registration ---
+UC_ASSET_REG ..> UC_ASSIGN_CAT : <<extend>>
+UC_ASSET_REG ..> UC_ASSIGN_TAG : <<extend>>
+UC_PAY_REG ..> UC_ASSIGN_CAT : <<extend>>
+UC_PAY_REG ..> UC_ASSIGN_TAG : <<extend>>
+UC_SUB_REG ..> UC_ASSIGN_TAG : <<extend>>
+
+' --- Documents can be attached during registration ---
+UC_ASSET_REG ..> UC_ATTACH_DOC : <<extend>>
+UC_PAY_REG ..> UC_ATTACH_DOC : <<extend>>
+
+' --- Notification processing includes email delivery ---
+UC_NOTIF_PROC ..> UC_NOTIF_EMAIL : <<extend>>
+
+' --- Admin suspension logs to audit ---
+UC_ADM_SUSP ..> UC_ADM_AUDIT : <<include>>
+UC_ADM_REACT ..> UC_ADM_AUDIT : <<include>>
+
+@enduml
