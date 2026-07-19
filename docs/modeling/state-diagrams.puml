@@ -1,0 +1,293 @@
+@startuml TrackWise_State_Asset
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+
+skinparam state {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  FontSize 12
+}
+
+title **Asset Lifecycle**
+
+[*] --> ACTIVE : register asset
+
+ACTIVE --> ARCHIVED : archive()
+ACTIVE --> SOLD : markSold()
+ACTIVE --> DISPOSED : markDisposed()
+
+ARCHIVED --> ACTIVE : reactivate()
+
+SOLD -[#DC2626]-> [*]
+DISPOSED -[#DC2626]-> [*]
+
+ACTIVE : Asset is being actively tracked
+ACTIVE : Payments and documents can be added
+ACTIVE : Appears in dashboard and reports
+
+ARCHIVED : Removed from active tracking
+ARCHIVED : Historical data is preserved
+ARCHIVED : Can be reactivated
+
+state SOLD #FEE2E2 {
+}
+SOLD : Asset was sold
+SOLD : Historical data preserved
+SOLD : Cannot be reactivated
+
+state DISPOSED #FEE2E2 {
+}
+DISPOSED : Asset was discarded/destroyed
+DISPOSED : Historical data preserved
+DISPOSED : Cannot be reactivated
+
+note right of ACTIVE
+  Default state on creation.
+  All CRUD operations allowed.
+end note
+
+note bottom of ARCHIVED
+  Only transition back to
+  ACTIVE is allowed.
+  Useful for seasonal assets.
+end note
+
+@enduml
+
+
+@startuml TrackWise_State_Subscription
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+
+skinparam state {
+  BackgroundColor #FFF8E1
+  BorderColor #F59E0B
+  FontSize 12
+}
+
+title **Subscription Lifecycle**
+
+[*] --> ACTIVE : register subscription
+
+ACTIVE --> PAUSED : pause()
+ACTIVE --> CANCELLED : cancel(reason)
+
+PAUSED --> ACTIVE : resume()
+PAUSED --> CANCELLED : cancel(reason)
+
+CANCELLED -[#DC2626]-> [*]
+
+ACTIVE : Subscription is running
+ACTIVE : Renewal dates are tracked
+ACTIVE : Payments are generated on schedule
+ACTIVE : Notifications are sent before renewal
+
+PAUSED : Temporarily stopped
+PAUSED : No payments generated
+PAUSED : No renewal notifications
+PAUSED : Can be resumed
+
+state CANCELLED #FEE2E2 {
+}
+CANCELLED : Subscription permanently ended
+CANCELLED : cancelledAt and cancelReason recorded
+CANCELLED : Historical data preserved
+
+note right of ACTIVE
+  Recurrence rule drives
+  next_renewal_date calculation
+  and payment generation.
+end note
+
+note bottom of PAUSED
+  Pausing freezes the
+  recurrence rule. Resuming
+  recalculates next_renewal_date
+  from the resume date.
+end note
+
+@enduml
+
+
+@startuml TrackWise_State_Payment
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+
+skinparam state {
+  BackgroundColor #FFF8E1
+  BorderColor #F59E0B
+  FontSize 12
+}
+
+title **Payment Lifecycle**
+
+[*] --> PENDING : register payment\n[default]
+[*] --> PAID : register payment\n[already paid]
+
+PENDING --> PAID : markPaid(paymentDate)
+PENDING --> OVERDUE : [due date passed]\nsystem scheduled check
+
+OVERDUE --> PAID : markPaid(paymentDate)
+OVERDUE --> FAILED : markFailed()
+
+PAID -[#16A34A]-> [*]
+FAILED -[#DC2626]-> [*]
+
+PENDING : Payment is due but not yet paid
+PENDING : due_date is in the future
+PENDING : Eligible for payment reminders
+
+OVERDUE : due_date has passed
+OVERDUE : Payment was not made on time
+OVERDUE : Urgent notifications sent
+
+state PAID #F0FDF4 {
+}
+PAID : Payment completed
+PAID : paymentDate is recorded
+
+state FAILED #FEE2E2 {
+}
+FAILED : Payment could not be made
+FAILED : Recorded for history/analytics
+
+note right of PENDING
+  Created with status PENDING
+  unless user marks as already
+  paid at registration (AF-7).
+end note
+
+note left of OVERDUE
+  Transition triggered
+  automatically by the
+  system scheduler when
+  due_date < today.
+end note
+
+@enduml
+
+
+@startuml TrackWise_State_User
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+
+skinparam state {
+  BackgroundColor #FDF2F8
+  BorderColor #DB2777
+  FontSize 12
+}
+
+title **User Account Lifecycle**
+
+[*] --> ACTIVE : register account
+
+ACTIVE --> SUSPENDED : admin.suspend(reason)
+ACTIVE --> DELETED : requestDeletion()\n[after grace period]
+
+SUSPENDED --> ACTIVE : admin.reactivate()
+SUSPENDED --> DELETED : admin.delete()
+
+DELETED -[#DC2626]-> [*]
+
+ACTIVE : Full system access
+ACTIVE : Can manage assets, payments, etc.
+ACTIVE : Can request account deletion
+
+SUSPENDED : Login denied
+SUSPENDED : Existing sessions expire naturally
+SUSPENDED : Data is preserved
+SUSPENDED : Admin can reactivate
+
+state DELETED #FEE2E2 {
+}
+DELETED : Soft-deleted (deleted_at set)
+DELETED : Login denied
+DELETED : Data retained per GDPR grace period
+DELETED : Eventually purged after retention period
+
+note right of ACTIVE
+  Default state on registration.
+  All user operations allowed.
+end note
+
+note left of SUSPENDED
+  Admin action. Audit log
+  entry created with reason.
+  User notified via email.
+end note
+
+note bottom of DELETED
+  User-initiated: grace period
+  before data removal.
+  Admin-initiated: immediate
+  soft delete.
+end note
+
+@enduml
+
+
+@startuml TrackWise_State_Document
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+
+skinparam state {
+  BackgroundColor #F0FDF4
+  BorderColor #16A34A
+  FontSize 12
+}
+
+title **Document Expiration Lifecycle**
+
+state "NO_EXPIRATION" as NOEXP
+state "VALID" as VALID
+state "EXPIRING_SOON" as EXPIRING #FFF8E1
+state "EXPIRED" as EXPIRED #FEE2E2
+
+[*] --> NOEXP : upload\n[no expiration date]
+[*] --> VALID : upload\n[expiration date set]
+
+VALID --> EXPIRING : [expiration date within\nnotification lead time]
+EXPIRING --> EXPIRED : [expiration date passed]
+
+NOEXP : Document has no expiration
+NOEXP : No expiration alerts sent
+NOEXP : Always considered valid
+
+VALID : Expiration date is in the future
+VALID : Beyond notification window
+VALID : No alerts yet
+
+EXPIRING : Expiration is approaching
+EXPIRING : Within user's lead time window
+EXPIRING : Expiration alert sent
+
+EXPIRED : Expiration date has passed
+EXPIRED : Document may need renewal
+EXPIRED : Visible in expired documents list
+
+note right of NOEXP
+  Many documents don't expire
+  (e.g., purchase receipts).
+  These remain in this state
+  indefinitely.
+end note
+
+note bottom of EXPIRING
+  These are computed states,
+  not stored. Derived from
+  expiration_date vs. today
+  and user's lead_time_days
+  preference.
+end note
+
+@enduml
