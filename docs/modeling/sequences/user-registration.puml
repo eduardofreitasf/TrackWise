@@ -1,0 +1,73 @@
+@startuml TrackWise_Seq_UserRegistration
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+title **Sequence Diagram -- Register Account (UC-01)**
+
+actor "End User\n(Unregistered)" as USER
+participant "UserController" as CTRL
+participant "UserServiceImpl" as SVC
+participant "PasswordEncoder" as BCYP
+participant "UserRepository" as REPO
+participant "UserMapper" as MAPPER
+participant "NotificationPreferenceService" as NOTIF_SVC
+database "PostgreSQL" as DB
+
+USER -> CTRL : POST /api/users/register\n{RegisterRequest}
+activate CTRL
+
+CTRL -> SVC : registerUser(request)
+activate SVC
+
+SVC -> REPO : existsByEmail(request.email)
+activate REPO
+return false (if true, throw Exception)
+
+SVC -> BCYP : encode(request.password)
+activate BCYP
+return passwordHash
+
+SVC -> MAPPER : toEntity(request, passwordHash)
+activate MAPPER
+return user
+
+SVC -> SVC : user.setStatus(ACTIVE)
+SVC -> SVC : user.setRole(ROLE_USER)
+
+SVC -> REPO : save(user)
+activate REPO
+REPO -> DB : INSERT INTO users
+activate DB
+return savedUser
+return savedUser
+
+== Create Default Preferences ==
+
+SVC -> NOTIF_SVC : createDefaultPreferences(savedUser.id)
+activate NOTIF_SVC
+note right
+  Creates default alert settings
+  (e.g., 3 days before payment due)
+end note
+return void
+
+== Map Response ==
+
+SVC -> MAPPER : toResponse(savedUser)
+activate MAPPER
+return userProfileResponse
+
+return userProfileResponse
+
+CTRL --> USER : 201 Created\n{UserProfileResponse}
+deactivate CTRL
+
+@enduml

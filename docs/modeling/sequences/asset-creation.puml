@@ -1,0 +1,95 @@
+@startuml TrackWise_Seq_AssetCreation
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+skinparam participant {
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+}
+
+title **Sequence Diagram -- Register Asset (UC-03)**
+
+actor "End User" as USER
+participant "AssetController" as CTRL
+participant "SecurityContext" as SEC <<external>>
+participant "AssetServiceImpl" as SVC
+participant "CategoryService" as CAT_SVC <<external>>
+participant "TagService" as TAG_SVC <<external>>
+participant "AssetMapper" as MAPPER
+participant "AssetRepository" as REPO
+database "PostgreSQL" as DB
+
+== Authentication (handled by JWT filter) ==
+
+USER -> CTRL : POST /api/assets\n{CreateAssetRequest}
+activate CTRL
+
+CTRL -> SEC : getCurrentUserId()
+activate SEC
+return userId
+
+== Asset Creation ==
+
+CTRL -> SVC : createAsset(userId, request)
+activate SVC
+
+SVC -> SVC : validate(request)
+note right : Validate required fields:\nname, purchasePrice, currency
+
+alt categoryId is provided
+  SVC -> CAT_SVC : getCategory(userId, categoryId)
+  activate CAT_SVC
+  alt category not found or wrong user
+    CAT_SVC --> SVC : throw ResourceNotFoundException
+    SVC --> CTRL : throw ResourceNotFoundException
+    CTRL --> USER : 404 Not Found
+  else category found
+    return category
+  end
+end
+
+alt tagIds are provided
+  SVC -> TAG_SVC : getTagsByIds(userId, tagIds)
+  activate TAG_SVC
+  alt some tags not found
+    TAG_SVC --> SVC : throw ResourceNotFoundException
+    SVC --> CTRL : throw ResourceNotFoundException
+    CTRL --> USER : 404 Not Found
+  else all tags found
+    return Set<Tag>
+  end
+end
+
+SVC -> MAPPER : toEntity(request, userId)
+activate MAPPER
+return asset
+
+SVC -> SVC : asset.setCategory(category)
+SVC -> SVC : asset.setTags(tags)
+SVC -> SVC : asset.setStatus(ACTIVE)
+
+SVC -> REPO : save(asset)
+activate REPO
+REPO -> DB : INSERT INTO asset
+activate DB
+return savedAsset
+return savedAsset
+
+SVC -> MAPPER : toResponse(savedAsset)
+activate MAPPER
+return assetResponse
+
+return assetResponse
+
+CTRL --> USER : 201 Created\n{AssetResponse}
+deactivate CTRL
+
+@enduml

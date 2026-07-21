@@ -1,0 +1,242 @@
+@startuml TrackWise_Class_AuthUserManagement
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+  BackgroundColor<<security>> #FDF2F8
+  BorderColor<<security>> #DB2777
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-01 Auth & SS-02 User Management (Class Diagram)**
+
+
+' ============================================================
+' CONTROLLER LAYER
+' ============================================================
+
+package "controller" {
+  class AuthController {
+    - authenticationManager : AuthenticationManager
+    - jwtTokenProvider : JwtTokenProvider
+    - userService : UserService
+    --
+    + login(request : LoginRequest) : TokenResponse
+    + refreshToken(request : RefreshTokenRequest) : TokenResponse
+  }
+
+  class UserController {
+    - userService : UserService
+    --
+    + register(request : RegisterRequest) : UserProfileResponse
+    + getCurrentProfile() : UserProfileResponse
+    + updateProfile(request : UpdateProfileRequest) : UserProfileResponse
+    + changePassword(request : ChangePasswordRequest) : void
+    + requestDeletion() : void
+  }
+}
+
+
+' ============================================================
+' SECURITY (SS-01) LAYER
+' ============================================================
+
+package "security (SS-01)" {
+  class JwtTokenProvider <<security>> {
+    - jwtSecret : String
+    - jwtExpirationMs : long
+    --
+    + generateToken(authentication : Authentication) : String
+    + generateRefreshToken(userId : Long) : String
+    + getUserIdFromJwt(token : String) : Long
+    + validateToken(authToken : String) : boolean
+  }
+
+  class JwtAuthenticationFilter <<security>> {
+    - jwtTokenProvider : JwtTokenProvider
+    - customUserDetailsService : CustomUserDetailsService
+    --
+    + doFilterInternal(request, response, filterChain)
+  }
+
+  class CustomUserDetailsService <<security>> {
+    - userRepository : UserRepository
+    --
+    .. implements UserDetailsService ..
+    + loadUserByUsername(email : String) : UserDetails
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER (SS-02)
+' ============================================================
+
+package "service" {
+  interface UserService {
+    + registerUser(request : RegisterRequest) : UserProfileResponse
+    + getProfile(userId : Long) : UserProfileResponse
+    + updateProfile(userId : Long, request : UpdateProfileRequest) : UserProfileResponse
+    + changePassword(userId : Long, request : ChangePasswordRequest) : void
+    + requestAccountDeletion(userId : Long) : void
+    + updateLastLogin(userId : Long) : void
+    + suspendUser(userId : Long, reason : String) : void
+    + reactivateUser(userId : Long) : void
+  }
+
+  class UserServiceImpl {
+    - userRepository : UserRepository
+    - userMapper : UserMapper
+    - passwordEncoder : PasswordEncoder
+    - notificationPreferenceService : NotificationPreferenceService
+    --
+    .. implements UserService ..
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface UserRepository {
+    + findByEmail(email : String) : Optional<User>
+    + existsByEmail(email : String) : boolean
+    + findByIdAndStatusNot(id : Long, status : UserStatus) : Optional<User>
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class User {
+    - id : Long
+    - firstName : String
+    - lastName : String
+    - email : String
+    - passwordHash : String
+    - defaultCurrency : String
+    - status : UserStatus
+    - role : Role
+    - lastLoginAt : Instant
+    - createdAt : Instant
+    - updatedAt : Instant
+    - deletedAt : Instant
+    --
+    + suspend() : void
+    + reactivate() : void
+    + softDelete() : void
+    + updateLastLogin() : void
+  }
+
+  enum UserStatus <<enum>> {
+    ACTIVE
+    SUSPENDED
+    DELETED
+  }
+  
+  enum Role <<enum>> {
+    ROLE_USER
+    ROLE_ADMIN
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class LoginRequest <<dto>> {
+    - email : String
+    - password : String
+  }
+  
+  class RegisterRequest <<dto>> {
+    - firstName : String
+    - lastName : String
+    - email : String
+    - password : String
+    - defaultCurrency : String
+  }
+
+  class TokenResponse <<dto>> {
+    - accessToken : String
+    - refreshToken : String
+    - tokenType : String
+  }
+
+  class UserProfileResponse <<dto>> {
+    - id : Long
+    - firstName : String
+    - lastName : String
+    - email : String
+    - defaultCurrency : String
+    - role : Role
+    - createdAt : Instant
+  }
+}
+
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "mapper" {
+  class UserMapper {
+    + toEntity(request : RegisterRequest, encodedPassword : String) : User
+    + toResponse(user : User) : UserProfileResponse
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES
+' ============================================================
+
+package "SS-07 Notification (external)" <<external>> #F5F5F5 {
+  interface NotificationPreferenceService <<external>> {
+    + createDefaultPreferences(userId : Long) : void
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+AuthController --> JwtTokenProvider : uses
+AuthController --> UserService : uses
+
+UserController --> UserService : uses
+UserServiceImpl ..|> UserService : implements
+UserServiceImpl --> UserRepository : uses
+UserServiceImpl --> UserMapper : uses
+UserServiceImpl --> NotificationPreferenceService : creates defaults
+
+CustomUserDetailsService --> UserRepository : uses
+
+User --> UserStatus : has
+User --> Role : has
+
+@enduml

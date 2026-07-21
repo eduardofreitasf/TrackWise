@@ -1,0 +1,305 @@
+@startuml TrackWise_Class_PaymentManagement
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+  BackgroundColor<<value>> #FDF2F8
+  BorderColor<<value>> #DB2777
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-04 Payment Management (Class Diagram)**
+
+
+' ============================================================
+' CONTROLLER LAYER
+' ============================================================
+
+package "controller" {
+  class PaymentController {
+    - paymentService : PaymentService
+    --
+    + createPayment(request : CreatePaymentRequest) : PaymentResponse
+    + getPayment(id : Long) : PaymentResponse
+    + listPayments(params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+    + updatePayment(id : Long, request : UpdatePaymentRequest) : PaymentResponse
+    + updateStatus(id : Long, request : PaymentStatusUpdateRequest) : PaymentResponse
+    + deletePayment(id : Long) : void
+    + getUpcomingPayments(days : int) : List<PaymentSummaryResponse>
+    + getPaymentsByAsset(assetId : Long, params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+    + getPaymentsBySubscription(subId : Long, params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER
+' ============================================================
+
+package "service" {
+  interface PaymentService {
+    + createPayment(userId : Long, request : CreatePaymentRequest) : PaymentResponse
+    + getPayment(userId : Long, paymentId : Long) : PaymentResponse
+    + listPayments(userId : Long, params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+    + updatePayment(userId : Long, paymentId : Long, request : UpdatePaymentRequest) : PaymentResponse
+    + updateStatus(userId : Long, paymentId : Long, request : PaymentStatusUpdateRequest) : PaymentResponse
+    + deletePayment(userId : Long, paymentId : Long) : void
+    + getUpcomingPayments(userId : Long, days : int) : List<PaymentSummaryResponse>
+    + getPaymentsByAsset(userId : Long, assetId : Long, params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+    + getPaymentsBySubscription(userId : Long, subId : Long, params : PaymentFilterParams) : Page<PaymentSummaryResponse>
+    + processOverduePayments() : int
+  }
+
+  class PaymentServiceImpl {
+    - paymentRepository : PaymentRepository
+    - paymentMapper : PaymentMapper
+    - assetService : AssetService
+    - subscriptionService : SubscriptionService
+    - categoryService : CategoryService
+    - tagService : TagService
+    - recurrenceRuleService : RecurrenceRuleService
+    --
+    .. implements PaymentService ..
+    - validateStatusTransition(current : PaymentStatus, target : PaymentStatus) : void
+    - ensureOwnership(userId : Long, payment : Payment) : void
+    - resolveAssetLink(userId : Long, assetId : Long) : Asset
+    - resolveSubscriptionLink(userId : Long, subscriptionId : Long) : Subscription
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface PaymentRepository {
+    + findByIdAndUserIdAndDeletedAtIsNull(id : Long, userId : Long) : Optional<Payment>
+    + findAllByUserIdAndDeletedAtIsNull(userId : Long, pageable : Pageable) : Page<Payment>
+    + findAllByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : PaymentStatus, pageable : Pageable) : Page<Payment>
+    + findAllByUserIdAndAssetIdAndDeletedAtIsNull(userId : Long, assetId : Long, pageable : Pageable) : Page<Payment>
+    + findAllByUserIdAndSubscriptionIdAndDeletedAtIsNull(userId : Long, subId : Long, pageable : Pageable) : Page<Payment>
+    + findAllByUserIdAndDueDateBetweenAndStatusAndDeletedAtIsNull(userId : Long, from : LocalDate, to : LocalDate, status : PaymentStatus) : List<Payment>
+    + findAllByStatusAndDueDateBeforeAndDeletedAtIsNull(status : PaymentStatus, date : LocalDate) : List<Payment>
+    + sumAmountByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : PaymentStatus) : BigDecimal
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class Payment {
+    - id : Long
+    - userId : Long
+    - assetId : Long
+    - subscriptionId : Long
+    - amount : Money
+    - paymentDate : LocalDate
+    - dueDate : LocalDate
+    - category : Category
+    - tags : Set<Tag>
+    - description : String
+    - status : PaymentStatus
+    - isRecurring : boolean
+    - recurrenceRule : RecurrenceRule
+    - createdAt : Instant
+    - updatedAt : Instant
+    - deletedAt : Instant
+    --
+    + markPaid(paymentDate : LocalDate) : void
+    + markOverdue() : void
+    + markFailed() : void
+    + softDelete() : void
+    + isOverdue() : boolean
+  }
+
+  enum PaymentStatus <<enum>> {
+    PENDING
+    PAID
+    OVERDUE
+    FAILED
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class CreatePaymentRequest <<dto>> {
+    - assetId : Long
+    - subscriptionId : Long
+    - amount : BigDecimal
+    - currency : String
+    - dueDate : LocalDate
+    - paymentDate : LocalDate
+    - description : String
+    - categoryId : Long
+    - tagIds : Set<Long>
+    - isRecurring : boolean
+    - recurrenceRule : CreateRecurrenceRuleRequest
+    - alreadyPaid : boolean
+  }
+
+  class UpdatePaymentRequest <<dto>> {
+    - amount : BigDecimal
+    - currency : String
+    - dueDate : LocalDate
+    - description : String
+    - categoryId : Long
+    - tagIds : Set<Long>
+  }
+
+  class PaymentStatusUpdateRequest <<dto>> {
+    - status : PaymentStatus
+    - paymentDate : LocalDate
+  }
+
+  class PaymentFilterParams <<dto>> {
+    - status : PaymentStatus
+    - categoryId : Long
+    - tagIds : Set<Long>
+    - isRecurring : boolean
+    - fromDate : LocalDate
+    - toDate : LocalDate
+    - page : int
+    - size : int
+    - sortBy : String
+    - sortDir : String
+  }
+
+  class PaymentResponse <<dto>> {
+    - id : Long
+    - assetId : Long
+    - assetName : String
+    - subscriptionId : Long
+    - subscriptionName : String
+    - amount : MoneyResponse
+    - paymentDate : LocalDate
+    - dueDate : LocalDate
+    - description : String
+    - category : CategoryResponse
+    - tags : Set<TagResponse>
+    - status : PaymentStatus
+    - isRecurring : boolean
+    - recurrenceRule : RecurrenceRuleResponse
+    - createdAt : Instant
+    - updatedAt : Instant
+  }
+
+  class PaymentSummaryResponse <<dto>> {
+    - id : Long
+    - description : String
+    - amount : MoneyResponse
+    - dueDate : LocalDate
+    - status : PaymentStatus
+    - assetName : String
+    - subscriptionName : String
+    - categoryName : String
+  }
+}
+
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "mapper" {
+  class PaymentMapper {
+    + toEntity(request : CreatePaymentRequest, userId : Long) : Payment
+    + toResponse(payment : Payment) : PaymentResponse
+    + toSummaryResponse(payment : Payment) : PaymentSummaryResponse
+    + updateEntity(payment : Payment, request : UpdatePaymentRequest) : void
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES (other sub-systems)
+' ============================================================
+
+package "SS-03 Asset (external)" <<external>> #F5F5F5 {
+  interface AssetService <<external>> {
+    + getAsset(userId : Long, assetId : Long) : AssetResponse
+  }
+}
+
+package "SS-10 Subscription (external)" <<external>> #F5F5F5 {
+  interface SubscriptionService <<external>> {
+    + getSubscription(userId : Long, subId : Long) : SubscriptionResponse
+  }
+}
+
+package "SS-06 Classification (external)" <<external>> #F5F5F5 {
+  interface CategoryService <<external>> {
+    + getCategory(userId : Long, categoryId : Long) : Category
+  }
+
+  interface TagService <<external>> {
+    + getTagsByIds(userId : Long, tagIds : Set<Long>) : Set<Tag>
+  }
+}
+
+package "SS-08 Scheduling (external)" <<external>> #F5F5F5 {
+  interface RecurrenceRuleService <<external>> {
+    + createRule(request : CreateRecurrenceRuleRequest) : RecurrenceRule
+    + getRule(ruleId : Long) : RecurrenceRule
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- Layer dependencies ---
+PaymentController --> PaymentService : uses
+PaymentServiceImpl ..|> PaymentService : implements
+PaymentServiceImpl --> PaymentRepository : uses
+PaymentServiceImpl --> PaymentMapper : uses
+
+' --- External dependencies ---
+PaymentServiceImpl --> AssetService : optional link
+PaymentServiceImpl --> SubscriptionService : optional link
+PaymentServiceImpl --> CategoryService : uses
+PaymentServiceImpl --> TagService : uses
+PaymentServiceImpl --> RecurrenceRuleService : recurring payments
+
+' --- Entity ---
+Payment --> PaymentStatus : has
+Payment *-- "0..1" Money : amount
+
+' --- Mapper ---
+PaymentMapper --> Payment : maps
+PaymentMapper --> PaymentResponse : maps
+PaymentMapper --> PaymentSummaryResponse : maps
+
+' --- Controller DTOs ---
+PaymentController ..> CreatePaymentRequest : receives
+PaymentController ..> UpdatePaymentRequest : receives
+PaymentController ..> PaymentStatusUpdateRequest : receives
+PaymentController ..> PaymentFilterParams : receives
+PaymentController ..> PaymentResponse : returns
+PaymentController ..> PaymentSummaryResponse : returns
+
+@enduml

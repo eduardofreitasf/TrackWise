@@ -1,0 +1,259 @@
+@startuml TrackWise_Class_NotificationEngine
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+  BackgroundColor<<scheduler>> #FDF2F8
+  BorderColor<<scheduler>> #DB2777
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-07 Notification Engine (Class Diagram)**
+
+
+' ============================================================
+' SCHEDULER & CONTROLLER LAYER
+' ============================================================
+
+package "scheduler" {
+  class NotificationScheduler <<scheduler>> {
+    - notificationService : NotificationService
+    --
+    + runDailyEvaluationJob() : void
+    + runEmailRetryJob() : void
+  }
+}
+
+package "controller" {
+  class NotificationController {
+    - notificationService : NotificationService
+    --
+    + listNotifications(pageable : Pageable) : Page<NotificationResponse>
+    + getUnreadCount() : int
+    + markAsRead(id : Long) : void
+    + markAllAsRead() : void
+  }
+
+  class NotificationPreferenceController {
+    - preferenceService : NotificationPreferenceService
+    --
+    + getPreferences() : List<NotificationPreferenceResponse>
+    + updatePreference(id : Long, request : UpdatePreferenceRequest) : NotificationPreferenceResponse
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER
+' ============================================================
+
+package "service" {
+  interface NotificationService {
+    + processTriggers() : void
+    + getUnreadCount(userId : Long) : int
+    + listNotifications(userId : Long, pageable : Pageable) : Page<NotificationResponse>
+    + markAsRead(userId : Long, notificationId : Long) : void
+    + markAllAsRead(userId : Long) : void
+  }
+  
+  interface NotificationPreferenceService {
+    + createDefaultPreferences(userId : Long) : void
+    + getPreferences(userId : Long) : List<NotificationPreferenceResponse>
+    + updatePreference(userId : Long, preferenceId : Long, request : UpdatePreferenceRequest) : NotificationPreferenceResponse
+    + getPreferenceForType(userId : Long, type : NotificationType) : Optional<NotificationPreference>
+  }
+
+  interface EmailService {
+    + sendEmail(to : String, subject : String, body : String) : boolean
+  }
+
+  class NotificationServiceImpl {
+    - notificationRepository : NotificationRepository
+    - preferenceService : NotificationPreferenceService
+    - emailService : EmailService
+    - paymentService : PaymentService
+    - subscriptionService : SubscriptionService
+    - documentService : DocumentService
+    - userService : UserService
+    - notificationMapper : NotificationMapper
+    --
+    .. implements NotificationService ..
+    - processPaymentTriggers() : void
+    - processSubscriptionTriggers() : void
+    - processDocumentTriggers() : void
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface NotificationRepository {
+    + findAllByUserIdOrderByCreatedAtDesc(userId : Long, pageable : Pageable) : Page<Notification>
+    + countByUserIdAndStatus(userId : Long, status : NotificationStatus) : Long
+    + existsByUserIdAndReferenceIdAndType(userId : Long, refId : Long, type : NotificationType) : boolean
+  }
+  
+  interface NotificationPreferenceRepository {
+    + findAllByUserId(userId : Long) : List<NotificationPreference>
+    + findByUserIdAndType(userId : Long, type : NotificationType) : Optional<NotificationPreference>
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class Notification {
+    - id : Long
+    - userId : Long
+    - type : NotificationType
+    - title : String
+    - message : String
+    - referenceId : Long
+    - referenceType : String
+    - status : NotificationStatus
+    - channel : NotificationChannel
+    - createdAt : Instant
+    --
+    + markRead() : void
+  }
+  
+  class NotificationPreference {
+    - id : Long
+    - userId : Long
+    - type : NotificationType
+    - enabled : boolean
+    - leadTimeDays : int
+    - channel : NotificationChannel
+    - createdAt : Instant
+    - updatedAt : Instant
+  }
+
+  enum NotificationType <<enum>> {
+    PAYMENT_DUE
+    SUBSCRIPTION_RENEWAL
+    DOCUMENT_EXPIRING
+    SYSTEM_ALERT
+  }
+  
+  enum NotificationStatus <<enum>> {
+    UNREAD
+    READ
+  }
+  
+  enum NotificationChannel <<enum>> {
+    IN_APP
+    EMAIL
+    BOTH
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class NotificationResponse <<dto>> {
+    - id : Long
+    - type : NotificationType
+    - title : String
+    - message : String
+    - referenceId : Long
+    - referenceType : String
+    - status : NotificationStatus
+    - createdAt : Instant
+  }
+  
+  class NotificationPreferenceResponse <<dto>> {
+    - id : Long
+    - type : NotificationType
+    - enabled : boolean
+    - leadTimeDays : int
+    - channel : NotificationChannel
+  }
+  
+  class UpdatePreferenceRequest <<dto>> {
+    - enabled : boolean
+    - leadTimeDays : int
+    - channel : NotificationChannel
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES (other sub-systems)
+' ============================================================
+
+package "SS-02 User (external)" <<external>> #F5F5F5 {
+  interface UserService <<external>> {
+    + getEmailForUser(userId : Long) : String
+  }
+}
+
+package "SS-04 Payment (external)" <<external>> #F5F5F5 {
+  interface PaymentService <<external>> {
+    + getUpcomingPayments(date : LocalDate) : List<PaymentSummaryResponse>
+  }
+}
+
+package "SS-10 Subscription (external)" <<external>> #F5F5F5 {
+  interface SubscriptionService <<external>> {
+    + getUpcomingRenewals(date : LocalDate) : List<SubscriptionSummaryResponse>
+  }
+}
+
+package "SS-05 Document (external)" <<external>> #F5F5F5 {
+  interface DocumentService <<external>> {
+    + getExpiringDocuments(date : LocalDate) : List<DocumentSummaryResponse>
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+NotificationScheduler --> NotificationService : triggers
+NotificationController --> NotificationService : uses
+NotificationPreferenceController --> NotificationPreferenceService : uses
+
+NotificationServiceImpl ..|> NotificationService : implements
+NotificationServiceImpl --> NotificationRepository : uses
+NotificationServiceImpl --> NotificationPreferenceService : checks settings
+NotificationServiceImpl --> EmailService : uses
+
+' Reads from other sub-systems
+NotificationServiceImpl --> PaymentService : queries
+NotificationServiceImpl --> SubscriptionService : queries
+NotificationServiceImpl --> DocumentService : queries
+NotificationServiceImpl --> UserService : gets email address
+
+Notification --> NotificationType : has
+Notification --> NotificationStatus : has
+Notification --> NotificationChannel : has
+NotificationPreference --> NotificationType : has
+NotificationPreference --> NotificationChannel : has
+
+@enduml

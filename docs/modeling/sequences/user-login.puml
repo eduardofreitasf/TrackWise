@@ -1,0 +1,90 @@
+@startuml TrackWise_Seq_UserLogin
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<security>> #FDF2F8
+  BorderColor<<security>> #DB2777
+}
+
+title **Sequence Diagram -- Login (UC-02)**
+
+actor "End User / Admin" as USER
+participant "AuthController" as CTRL
+participant "AuthenticationManager" as AUTH_MGR <<security>>
+participant "CustomUserDetailsService" as UDS <<security>>
+participant "UserRepository" as REPO
+participant "PasswordEncoder" as BCYP
+participant "JwtTokenProvider" as JWT <<security>>
+participant "UserServiceImpl" as SVC
+database "PostgreSQL" as DB
+
+USER -> CTRL : POST /api/auth/login\n{LoginRequest}
+activate CTRL
+
+CTRL -> AUTH_MGR : authenticate(UsernamePasswordAuthenticationToken)
+activate AUTH_MGR
+
+AUTH_MGR -> UDS : loadUserByUsername(request.email)
+activate UDS
+
+UDS -> REPO : findByEmail(request.email)
+activate REPO
+REPO -> DB : SELECT * FROM users
+activate DB
+return user record
+return Optional<User>
+
+alt user not found OR status == DELETED
+  UDS --> AUTH_MGR : throw UsernameNotFoundException
+  AUTH_MGR --> CTRL : throw BadCredentialsException
+  CTRL --> USER : 401 Unauthorized
+end
+
+alt status == SUSPENDED
+  UDS --> AUTH_MGR : throw DisabledException
+  AUTH_MGR --> CTRL : throw DisabledException
+  CTRL --> USER : 403 Forbidden (Account Suspended)
+end
+
+return UserDetails
+
+AUTH_MGR -> BCYP : matches(request.password, user.passwordHash)
+activate BCYP
+return true/false
+
+alt false
+  AUTH_MGR --> CTRL : throw BadCredentialsException
+  CTRL --> USER : 401 Unauthorized
+end
+
+return Authentication (Success)
+
+== Generate Tokens ==
+
+CTRL -> JWT : generateToken(Authentication)
+activate JWT
+return accessToken
+
+CTRL -> JWT : generateRefreshToken(user.id)
+activate JWT
+return refreshToken
+
+== Update Last Login ==
+
+CTRL -> SVC : updateLastLogin(user.id)
+activate SVC
+SVC -> REPO : save(user with updated lastLoginAt)
+return void
+
+== Return Response ==
+
+CTRL --> USER : 200 OK\n{TokenResponse}
+deactivate CTRL
+
+@enduml

@@ -1,0 +1,258 @@
+@startuml TrackWise_Class_DocumentManagement
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-05 Document Management (Class Diagram)**
+
+
+' ============================================================
+' CONTROLLER LAYER
+' ============================================================
+
+package "controller" {
+  class DocumentController {
+    - documentService : DocumentService
+    --
+    + uploadDocument(file : MultipartFile, request : DocumentUploadRequest) : DocumentResponse
+    + getDocument(id : Long) : DocumentResponse
+    + downloadDocument(id : Long) : Resource
+    + listDocuments(params : DocumentFilterParams) : Page<DocumentSummaryResponse>
+    + updateMetadata(id : Long, request : DocumentUpdateRequest) : DocumentResponse
+    + deleteDocument(id : Long) : void
+    + getExpiringDocuments(days : int) : List<DocumentSummaryResponse>
+    + getDocumentsByAsset(assetId : Long) : List<DocumentSummaryResponse>
+    + getDocumentsByPayment(paymentId : Long) : List<DocumentSummaryResponse>
+    + getDocumentsBySubscription(subId : Long) : List<DocumentSummaryResponse>
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER
+' ============================================================
+
+package "service" {
+  interface DocumentService {
+    + uploadDocument(userId : Long, file : MultipartFile, request : DocumentUploadRequest) : DocumentResponse
+    + getDocument(userId : Long, documentId : Long) : DocumentResponse
+    + downloadDocument(userId : Long, documentId : Long) : Resource
+    + listDocuments(userId : Long, params : DocumentFilterParams) : Page<DocumentSummaryResponse>
+    + updateMetadata(userId : Long, documentId : Long, request : DocumentUpdateRequest) : DocumentResponse
+    + deleteDocument(userId : Long, documentId : Long) : void
+    + getExpiringDocuments(userId : Long, days : int) : List<DocumentSummaryResponse>
+  }
+
+  interface StorageService {
+    + store(file : MultipartFile, userId : Long) : String
+    + loadAsResource(filePath : String) : Resource
+    + delete(filePath : String) : void
+  }
+
+  class DocumentServiceImpl {
+    - documentRepository : DocumentRepository
+    - storageService : StorageService
+    - documentMapper : DocumentMapper
+    - assetService : AssetService
+    - paymentService : PaymentService
+    - subscriptionService : SubscriptionService
+    --
+    .. implements DocumentService ..
+    - ensureOwnership(userId : Long, document : Document) : void
+    - validateAssociations(userId : Long, request : DocumentUploadRequest) : void
+  }
+  
+  class FileSystemStorageService {
+    - storageLocation : Path
+    --
+    .. implements StorageService ..
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface DocumentRepository {
+    + findByIdAndUserIdAndDeletedAtIsNull(id : Long, userId : Long) : Optional<Document>
+    + findAllByUserIdAndDeletedAtIsNull(userId : Long, pageable : Pageable) : Page<Document>
+    + findAllByUserIdAndAssetIdAndDeletedAtIsNull(userId : Long, assetId : Long) : List<Document>
+    + findAllByUserIdAndPaymentIdAndDeletedAtIsNull(userId : Long, paymentId : Long) : List<Document>
+    + findAllByUserIdAndSubscriptionIdAndDeletedAtIsNull(userId : Long, subId : Long) : List<Document>
+    + findAllByExpirationDateBetweenAndDeletedAtIsNull(from : LocalDate, to : LocalDate) : List<Document>
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class Document {
+    - id : Long
+    - userId : Long
+    - assetId : Long
+    - paymentId : Long
+    - subscriptionId : Long
+    - name : String
+    - description : String
+    - filePath : String
+    - fileType : String
+    - fileSize : Long
+    - expirationDate : LocalDate
+    - createdAt : Instant
+    - updatedAt : Instant
+    - deletedAt : Instant
+    --
+    + softDelete() : void
+    + isExpired() : boolean
+    + hasExpiration() : boolean
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class DocumentUploadRequest <<dto>> {
+    - name : String
+    - description : String
+    - expirationDate : LocalDate
+    - assetId : Long
+    - paymentId : Long
+    - subscriptionId : Long
+  }
+
+  class DocumentUpdateRequest <<dto>> {
+    - name : String
+    - description : String
+    - expirationDate : LocalDate
+  }
+
+  class DocumentFilterParams <<dto>> {
+    - search : String
+    - assetId : Long
+    - paymentId : Long
+    - subscriptionId : Long
+    - fromExpirationDate : LocalDate
+    - toExpirationDate : LocalDate
+    - page : int
+    - size : int
+    - sortBy : String
+    - sortDir : String
+  }
+
+  class DocumentResponse <<dto>> {
+    - id : Long
+    - name : String
+    - description : String
+    - fileType : String
+    - fileSize : Long
+    - expirationDate : LocalDate
+    - assetId : Long
+    - paymentId : Long
+    - subscriptionId : Long
+    - createdAt : Instant
+    - updatedAt : Instant
+    - downloadUrl : String
+  }
+
+  class DocumentSummaryResponse <<dto>> {
+    - id : Long
+    - name : String
+    - fileType : String
+    - expirationDate : LocalDate
+    - downloadUrl : String
+  }
+}
+
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "mapper" {
+  class DocumentMapper {
+    + toEntity(request : DocumentUploadRequest, userId : Long, filePath : String, fileType : String, fileSize : Long) : Document
+    + toResponse(document : Document) : DocumentResponse
+    + toSummaryResponse(document : Document) : DocumentSummaryResponse
+    + updateEntity(document : Document, request : DocumentUpdateRequest) : void
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES (other sub-systems)
+' ============================================================
+
+package "SS-03 Asset (external)" <<external>> #F5F5F5 {
+  interface AssetService <<external>> {
+    + existsByIdAndUserId(assetId : Long, userId : Long) : boolean
+  }
+}
+
+package "SS-04 Payment (external)" <<external>> #F5F5F5 {
+  interface PaymentService <<external>> {
+    + existsByIdAndUserId(paymentId : Long, userId : Long) : boolean
+  }
+}
+
+package "SS-10 Subscription (external)" <<external>> #F5F5F5 {
+  interface SubscriptionService <<external>> {
+    + existsByIdAndUserId(subId : Long, userId : Long) : boolean
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- Layer dependencies ---
+DocumentController --> DocumentService : uses
+DocumentServiceImpl ..|> DocumentService : implements
+DocumentServiceImpl --> DocumentRepository : uses
+DocumentServiceImpl --> StorageService : uses
+FileSystemStorageService ..|> StorageService : implements
+DocumentServiceImpl --> DocumentMapper : uses
+
+' --- External dependencies ---
+DocumentServiceImpl --> AssetService : optional validation
+DocumentServiceImpl --> PaymentService : optional validation
+DocumentServiceImpl --> SubscriptionService : optional validation
+
+' --- Mapper ---
+DocumentMapper --> Document : maps
+DocumentMapper --> DocumentResponse : maps
+DocumentMapper --> DocumentSummaryResponse : maps
+
+' --- Controller DTOs ---
+DocumentController ..> DocumentUploadRequest : receives
+DocumentController ..> DocumentUpdateRequest : receives
+DocumentController ..> DocumentFilterParams : receives
+DocumentController ..> DocumentResponse : returns
+DocumentController ..> DocumentSummaryResponse : returns
+
+@enduml

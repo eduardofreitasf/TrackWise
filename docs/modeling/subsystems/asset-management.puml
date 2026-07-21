@@ -1,0 +1,293 @@
+@startuml TrackWise_Class_AssetManagement
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+  BackgroundColor<<value>> #FDF2F8
+  BorderColor<<value>> #DB2777
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-03 Asset Management (Class Diagram)**
+
+
+' ============================================================
+' CONTROLLER LAYER
+' ============================================================
+
+package "controller" {
+  class AssetController {
+    - assetService : AssetService
+    --
+    + createAsset(request : CreateAssetRequest) : AssetResponse
+    + getAsset(id : Long) : AssetResponse
+    + listAssets(params : AssetFilterParams) : Page<AssetSummaryResponse>
+    + updateAsset(id : Long, request : UpdateAssetRequest) : AssetResponse
+    + updateStatus(id : Long, request : StatusUpdateRequest) : AssetResponse
+    + deleteAsset(id : Long) : void
+    + getHistory(id : Long) : AssetHistoryResponse
+    + getFutureCommitments(id : Long) : List<FutureCommitmentResponse>
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER
+' ============================================================
+
+package "service" {
+  interface AssetService {
+    + createAsset(userId : Long, request : CreateAssetRequest) : AssetResponse
+    + getAsset(userId : Long, assetId : Long) : AssetResponse
+    + listAssets(userId : Long, params : AssetFilterParams) : Page<AssetSummaryResponse>
+    + updateAsset(userId : Long, assetId : Long, request : UpdateAssetRequest) : AssetResponse
+    + updateStatus(userId : Long, assetId : Long, request : StatusUpdateRequest) : AssetResponse
+    + deleteAsset(userId : Long, assetId : Long) : void
+    + getHistory(userId : Long, assetId : Long) : AssetHistoryResponse
+    + getFutureCommitments(userId : Long, assetId : Long) : List<FutureCommitmentResponse>
+  }
+
+  class AssetServiceImpl {
+    - assetRepository : AssetRepository
+    - assetMapper : AssetMapper
+    - categoryService : CategoryService
+    - tagService : TagService
+    --
+    .. implements AssetService ..
+    - validateStatusTransition(current : AssetStatus, target : AssetStatus) : void
+    - ensureOwnership(userId : Long, asset : Asset) : void
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface AssetRepository {
+    + findByIdAndUserIdAndDeletedAtIsNull(id : Long, userId : Long) : Optional<Asset>
+    + findAllByUserIdAndDeletedAtIsNull(userId : Long, pageable : Pageable) : Page<Asset>
+    + findAllByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : AssetStatus, pageable : Pageable) : Page<Asset>
+    + findAllByUserIdAndCategoryIdAndDeletedAtIsNull(userId : Long, categoryId : Long, pageable : Pageable) : Page<Asset>
+    + countByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : AssetStatus) : Long
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class Asset {
+    - id : Long
+    - userId : Long
+    - name : String
+    - description : String
+    - category : Category
+    - tags : Set<Tag>
+    - purchaseDate : LocalDate
+    - purchasePrice : Money
+    - currentValue : Money
+    - status : AssetStatus
+    - createdAt : Instant
+    - updatedAt : Instant
+    - deletedAt : Instant
+    --
+    + archive() : void
+    + markSold() : void
+    + markDisposed() : void
+    + reactivate() : void
+    + softDelete() : void
+  }
+
+  enum AssetStatus <<enum>> {
+    ACTIVE
+    ARCHIVED
+    SOLD
+    DISPOSED
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class CreateAssetRequest <<dto>> {
+    - name : String
+    - description : String
+    - categoryId : Long
+    - tagIds : Set<Long>
+    - purchaseDate : LocalDate
+    - purchasePrice : BigDecimal
+    - purchaseCurrency : String
+    - currentValue : BigDecimal
+    - currentValueCurrency : String
+  }
+
+  class UpdateAssetRequest <<dto>> {
+    - name : String
+    - description : String
+    - categoryId : Long
+    - tagIds : Set<Long>
+    - currentValue : BigDecimal
+    - currentValueCurrency : String
+  }
+
+  class StatusUpdateRequest <<dto>> {
+    - status : AssetStatus
+  }
+
+  class AssetFilterParams <<dto>> {
+    - status : AssetStatus
+    - categoryId : Long
+    - tagIds : Set<Long>
+    - page : int
+    - size : int
+    - sortBy : String
+    - sortDir : String
+  }
+
+  class AssetResponse <<dto>> {
+    - id : Long
+    - name : String
+    - description : String
+    - category : CategoryResponse
+    - tags : Set<TagResponse>
+    - purchaseDate : LocalDate
+    - purchasePrice : MoneyResponse
+    - currentValue : MoneyResponse
+    - status : AssetStatus
+    - createdAt : Instant
+    - updatedAt : Instant
+  }
+
+  class AssetSummaryResponse <<dto>> {
+    - id : Long
+    - name : String
+    - categoryName : String
+    - status : AssetStatus
+    - purchasePrice : MoneyResponse
+    - currentValue : MoneyResponse
+  }
+
+  class AssetHistoryResponse <<dto>> {
+    - asset : AssetResponse
+    - payments : List<PaymentSummaryResponse>
+    - documents : List<DocumentSummaryResponse>
+    - totalSpent : MoneyResponse
+  }
+
+  class FutureCommitmentResponse <<dto>> {
+    - description : String
+    - dueDate : LocalDate
+    - amount : MoneyResponse
+    - source : String
+  }
+}
+
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "mapper" {
+  class AssetMapper {
+    + toEntity(request : CreateAssetRequest, userId : Long) : Asset
+    + toResponse(asset : Asset) : AssetResponse
+    + toSummaryResponse(asset : Asset) : AssetSummaryResponse
+    + updateEntity(asset : Asset, request : UpdateAssetRequest) : void
+  }
+}
+
+
+' ============================================================
+' SHARED VALUE OBJECTS (from common package)
+' ============================================================
+
+package "common (cross-cutting)" #FEFEFE {
+  class Money <<value>> {
+    - amount : BigDecimal
+    - currency : String
+    --
+    + Money(amount : BigDecimal, currency : String)
+    + {static} of(amount : BigDecimal, currency : String) : Money
+    + {static} zero(currency : String) : Money
+  }
+
+  class MoneyResponse <<dto>> {
+    - amount : BigDecimal
+    - currency : String
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES (other sub-systems)
+' ============================================================
+
+package "SS-06 Classification (external)" <<external>> #F5F5F5 {
+  interface CategoryService <<external>> {
+    + getCategory(userId : Long, categoryId : Long) : Category
+  }
+
+  interface TagService <<external>> {
+    + getTagsByIds(userId : Long, tagIds : Set<Long>) : Set<Tag>
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- Layer dependencies ---
+AssetController --> AssetService : uses
+AssetServiceImpl ..|> AssetService : implements
+AssetServiceImpl --> AssetRepository : uses
+AssetServiceImpl --> AssetMapper : uses
+
+' --- Service dependencies on external sub-systems ---
+AssetServiceImpl --> CategoryService : uses
+AssetServiceImpl --> TagService : uses
+
+' --- Entity relationships ---
+Asset --> AssetStatus : has
+Asset *-- Money : purchasePrice, currentValue
+
+' --- Mapper dependencies ---
+AssetMapper --> Asset : maps
+AssetMapper --> AssetResponse : maps
+AssetMapper --> AssetSummaryResponse : maps
+AssetMapper --> CreateAssetRequest : maps
+
+' --- Controller uses DTOs ---
+AssetController ..> CreateAssetRequest : receives
+AssetController ..> UpdateAssetRequest : receives
+AssetController ..> StatusUpdateRequest : receives
+AssetController ..> AssetFilterParams : receives
+AssetController ..> AssetResponse : returns
+AssetController ..> AssetSummaryResponse : returns
+AssetController ..> AssetHistoryResponse : returns
+AssetController ..> FutureCommitmentResponse : returns
+
+@enduml

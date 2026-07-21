@@ -1,0 +1,89 @@
+@startuml TrackWise_Seq_ProcessNotifications
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<scheduler>> #FDF2F8
+  BorderColor<<scheduler>> #DB2777
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+}
+
+title **Sequence Diagram -- Process Notification Triggers (UC-09)**
+
+participant "Spring Scheduler" as CRON <<scheduler>>
+participant "NotificationScheduler" as SCHED <<scheduler>>
+participant "NotificationServiceImpl" as SVC
+participant "PaymentService" as PAY_SVC <<external>>
+participant "NotificationPreferenceService" as PREF_SVC
+participant "NotificationRepository" as REPO
+participant "UserService" as USR_SVC <<external>>
+participant "EmailService" as EMAIL
+database "PostgreSQL" as DB
+
+CRON -> SCHED : runDailyEvaluationJob()\n(e.g., at 00:01 AM)
+activate SCHED
+
+SCHED -> SVC : processTriggers()
+activate SVC
+
+== Query Upcoming Events ==
+note right of SVC
+  This process is repeated for Subscriptions
+  and Documents. We show Payments as an example.
+end note
+
+SVC -> PAY_SVC : getUpcomingPayments(targetDate = today + maxLeadTime)
+activate PAY_SVC
+return List<PaymentSummaryResponse>
+
+== Evaluate Each Event ==
+
+loop for each upcoming payment
+  SVC -> PREF_SVC : getPreferenceForType(userId, PAYMENT_DUE)
+  activate PREF_SVC
+  return preference
+  
+  alt preference.enabled == true AND\npayment.dueDate <= (today + preference.leadTimeDays)
+    
+    SVC -> REPO : existsByUserIdAndReferenceIdAndType(...)
+    activate REPO
+    return false (no duplicate)
+    
+    == Generate Notification ==
+    
+    SVC -> SVC : notification = new Notification(...)
+    SVC -> SVC : notification.setStatus(UNREAD)
+    SVC -> SVC : notification.setChannel(preference.channel)
+    
+    SVC -> REPO : save(notification)
+    activate REPO
+    REPO -> DB : INSERT
+    return saved
+    
+    == Send Email (if applicable) ==
+    
+    opt channel == EMAIL OR channel == BOTH
+      SVC -> USR_SVC : getEmailForUser(userId)
+      activate USR_SVC
+      return "user@email.com"
+      
+      SVC -> EMAIL : sendEmail(to, subject, body)
+      activate EMAIL
+      note right: Asynchronous execution\n(e.g., via message queue)
+      return void
+    end
+    
+  end
+end
+
+return void (process complete)
+
+deactivate SCHED
+
+@enduml

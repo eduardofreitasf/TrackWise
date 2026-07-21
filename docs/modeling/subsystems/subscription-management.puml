@@ -1,0 +1,265 @@
+@startuml TrackWise_Class_SubscriptionManagement
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam classFontSize 11
+skinparam linetype ortho
+
+skinparam class {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+  BackgroundColor<<dto>> #FFF8E1
+  BorderColor<<dto>> #F59E0B
+  BackgroundColor<<enum>> #F0FDF4
+  BorderColor<<enum>> #16A34A
+  BackgroundColor<<external>> #F5F5F5
+  BorderColor<<external>> #9CA3AF
+  BackgroundColor<<value>> #FDF2F8
+  BorderColor<<value>> #DB2777
+}
+
+skinparam package {
+  BackgroundColor #FAFAFA
+  BorderColor #9CA3AF
+}
+
+title **TrackWise -- SS-10 Subscription Management (Class Diagram)**
+
+
+' ============================================================
+' CONTROLLER LAYER
+' ============================================================
+
+package "controller" {
+  class SubscriptionController {
+    - subscriptionService : SubscriptionService
+    --
+    + createSubscription(request : CreateSubscriptionRequest) : SubscriptionResponse
+    + getSubscription(id : Long) : SubscriptionResponse
+    + listSubscriptions(params : SubscriptionFilterParams) : Page<SubscriptionSummaryResponse>
+    + updateSubscription(id : Long, request : UpdateSubscriptionRequest) : SubscriptionResponse
+    + updateStatus(id : Long, request : SubscriptionStatusUpdateRequest) : SubscriptionResponse
+    + deleteSubscription(id : Long) : void
+    + getUpcomingRenewals(days : int) : List<SubscriptionSummaryResponse>
+  }
+}
+
+
+' ============================================================
+' SERVICE LAYER
+' ============================================================
+
+package "service" {
+  interface SubscriptionService {
+    + createSubscription(userId : Long, request : CreateSubscriptionRequest) : SubscriptionResponse
+    + getSubscription(userId : Long, subscriptionId : Long) : SubscriptionResponse
+    + listSubscriptions(userId : Long, params : SubscriptionFilterParams) : Page<SubscriptionSummaryResponse>
+    + updateSubscription(userId : Long, subscriptionId : Long, request : UpdateSubscriptionRequest) : SubscriptionResponse
+    + updateStatus(userId : Long, subscriptionId : Long, request : SubscriptionStatusUpdateRequest) : SubscriptionResponse
+    + deleteSubscription(userId : Long, subscriptionId : Long) : void
+    + getUpcomingRenewals(userId : Long, days : int) : List<SubscriptionSummaryResponse>
+  }
+
+  class SubscriptionServiceImpl {
+    - subscriptionRepository : SubscriptionRepository
+    - subscriptionMapper : SubscriptionMapper
+    - assetService : AssetService
+    - tagService : TagService
+    - recurrenceRuleService : RecurrenceRuleService
+    --
+    .. implements SubscriptionService ..
+    - validateStatusTransition(current : SubscriptionStatus, target : SubscriptionStatus) : void
+    - ensureOwnership(userId : Long, subscription : Subscription) : void
+    - resolveAssetLink(userId : Long, assetId : Long) : Asset
+  }
+}
+
+
+' ============================================================
+' REPOSITORY LAYER
+' ============================================================
+
+package "repository" {
+  interface SubscriptionRepository {
+    + findByIdAndUserIdAndDeletedAtIsNull(id : Long, userId : Long) : Optional<Subscription>
+    + findAllByUserIdAndDeletedAtIsNull(userId : Long, pageable : Pageable) : Page<Subscription>
+    + findAllByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : SubscriptionStatus, pageable : Pageable) : Page<Subscription>
+    + findAllByUserIdAndAssetIdAndDeletedAtIsNull(userId : Long, assetId : Long, pageable : Pageable) : Page<Subscription>
+    + findAllByStatusAndNextRenewalDateBeforeAndDeletedAtIsNull(status : SubscriptionStatus, date : LocalDate) : List<Subscription>
+    + sumCostPerCycleByUserIdAndStatusAndDeletedAtIsNull(userId : Long, status : SubscriptionStatus) : BigDecimal
+  }
+}
+
+
+' ============================================================
+' ENTITY / DOMAIN
+' ============================================================
+
+package "entity" {
+  class Subscription {
+    - id : Long
+    - userId : Long
+    - assetId : Long
+    - name : String
+    - description : String
+    - costPerCycle : Money
+    - tags : Set<Tag>
+    - status : SubscriptionStatus
+    - recurrenceRule : RecurrenceRule
+    - nextRenewalDate : LocalDate
+    - createdAt : Instant
+    - updatedAt : Instant
+    - deletedAt : Instant
+    --
+    + pause() : void
+    + resume() : void
+    + cancel(reason : String) : void
+    + softDelete() : void
+    + calculateNextRenewalDate() : void
+  }
+
+  enum SubscriptionStatus <<enum>> {
+    ACTIVE
+    PAUSED
+    CANCELLED
+  }
+}
+
+
+' ============================================================
+' DTOs
+' ============================================================
+
+package "dto" {
+  class CreateSubscriptionRequest <<dto>> {
+    - name : String
+    - description : String
+    - assetId : Long
+    - costPerCycle : BigDecimal
+    - currency : String
+    - tagIds : Set<Long>
+    - recurrenceRule : CreateRecurrenceRuleRequest
+  }
+
+  class UpdateSubscriptionRequest <<dto>> {
+    - name : String
+    - description : String
+    - costPerCycle : BigDecimal
+    - currency : String
+    - tagIds : Set<Long>
+  }
+
+  class SubscriptionStatusUpdateRequest <<dto>> {
+    - status : SubscriptionStatus
+    - reason : String
+  }
+
+  class SubscriptionFilterParams <<dto>> {
+    - status : SubscriptionStatus
+    - assetId : Long
+    - tagIds : Set<Long>
+    - page : int
+    - size : int
+    - sortBy : String
+    - sortDir : String
+  }
+
+  class SubscriptionResponse <<dto>> {
+    - id : Long
+    - name : String
+    - description : String
+    - assetId : Long
+    - assetName : String
+    - costPerCycle : MoneyResponse
+    - tags : Set<TagResponse>
+    - status : SubscriptionStatus
+    - recurrenceRule : RecurrenceRuleResponse
+    - nextRenewalDate : LocalDate
+    - createdAt : Instant
+    - updatedAt : Instant
+  }
+
+  class SubscriptionSummaryResponse <<dto>> {
+    - id : Long
+    - name : String
+    - costPerCycle : MoneyResponse
+    - nextRenewalDate : LocalDate
+    - status : SubscriptionStatus
+    - assetName : String
+  }
+}
+
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "mapper" {
+  class SubscriptionMapper {
+    + toEntity(request : CreateSubscriptionRequest, userId : Long) : Subscription
+    + toResponse(subscription : Subscription) : SubscriptionResponse
+    + toSummaryResponse(subscription : Subscription) : SubscriptionSummaryResponse
+    + updateEntity(subscription : Subscription, request : UpdateSubscriptionRequest) : void
+  }
+}
+
+
+' ============================================================
+' EXTERNAL INTERFACES (other sub-systems)
+' ============================================================
+
+package "SS-03 Asset (external)" <<external>> #F5F5F5 {
+  interface AssetService <<external>> {
+    + getAsset(userId : Long, assetId : Long) : AssetResponse
+  }
+}
+
+package "SS-06 Classification (external)" <<external>> #F5F5F5 {
+  interface TagService <<external>> {
+    + getTagsByIds(userId : Long, tagIds : Set<Long>) : Set<Tag>
+  }
+}
+
+package "SS-08 Scheduling (external)" <<external>> #F5F5F5 {
+  interface RecurrenceRuleService <<external>> {
+    + createRule(request : CreateRecurrenceRuleRequest) : RecurrenceRule
+    + getRule(ruleId : Long) : RecurrenceRule
+    + calculateNextOccurrence(rule : RecurrenceRule, fromDate : LocalDate) : LocalDate
+  }
+}
+
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' --- Layer dependencies ---
+SubscriptionController --> SubscriptionService : uses
+SubscriptionServiceImpl ..|> SubscriptionService : implements
+SubscriptionServiceImpl --> SubscriptionRepository : uses
+SubscriptionServiceImpl --> SubscriptionMapper : uses
+
+' --- External dependencies ---
+SubscriptionServiceImpl --> AssetService : optional link
+SubscriptionServiceImpl --> TagService : uses
+SubscriptionServiceImpl --> RecurrenceRuleService : uses
+
+' --- Entity ---
+Subscription --> SubscriptionStatus : has
+Subscription *-- Money : costPerCycle
+
+' --- Mapper ---
+SubscriptionMapper --> Subscription : maps
+SubscriptionMapper --> SubscriptionResponse : maps
+SubscriptionMapper --> SubscriptionSummaryResponse : maps
+
+' --- Controller DTOs ---
+SubscriptionController ..> CreateSubscriptionRequest : receives
+SubscriptionController ..> UpdateSubscriptionRequest : receives
+SubscriptionController ..> SubscriptionStatusUpdateRequest : receives
+SubscriptionController ..> SubscriptionFilterParams : receives
+SubscriptionController ..> SubscriptionResponse : returns
+SubscriptionController ..> SubscriptionSummaryResponse : returns
+
+@enduml

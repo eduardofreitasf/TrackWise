@@ -1,0 +1,103 @@
+@startuml TrackWise_Seq_DocumentUpload
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+title **Sequence Diagram -- Upload Document (UC-06)**
+
+actor "End User" as USER
+participant "DocumentController" as CTRL
+participant "SecurityContext" as SEC
+participant "DocumentServiceImpl" as SVC
+participant "AssetService" as ASSET_SVC
+participant "PaymentService" as PAY_SVC
+participant "SubscriptionService" as SUB_SVC
+participant "StorageService" as STORE
+participant "DocumentMapper" as MAPPER
+participant "DocumentRepository" as REPO
+database "PostgreSQL" as DB
+database "File System / S3" as FS
+
+USER -> CTRL : POST /api/documents\n(MultipartFile, DocumentUploadRequest)
+activate CTRL
+
+CTRL -> SEC : getCurrentUserId()
+activate SEC
+return userId
+
+CTRL -> SVC : uploadDocument(userId, file, request)
+activate SVC
+
+SVC -> SVC : validate(file, request)
+note right
+  Validate:
+  - File is not empty
+  - File type is allowed (PDF, JPG, PNG)
+  - File size < limit
+end note
+
+== Optional: Validate Associations ==
+
+opt request.assetId is provided
+  SVC -> ASSET_SVC : existsByIdAndUserId(assetId, userId)
+  activate ASSET_SVC
+  alt not found
+    ASSET_SVC --> SVC : false
+    SVC --> CTRL : throw ResourceNotFoundException
+    CTRL --> USER : 404 Not Found
+  else
+    return true
+  end
+end
+
+opt request.paymentId is provided
+  SVC -> PAY_SVC : existsByIdAndUserId(paymentId, userId)
+  activate PAY_SVC
+  return true/false
+end
+
+opt request.subscriptionId is provided
+  SVC -> SUB_SVC : existsByIdAndUserId(subId, userId)
+  activate SUB_SVC
+  return true/false
+end
+
+== Store File Physically ==
+
+SVC -> STORE : store(file, userId)
+activate STORE
+STORE -> FS : write file
+activate FS
+return success
+return filePath
+
+== Create Document Entity ==
+
+SVC -> MAPPER : toEntity(request, userId, filePath, file.type, file.size)
+activate MAPPER
+return document
+
+SVC -> REPO : save(document)
+activate REPO
+REPO -> DB : INSERT INTO document
+activate DB
+return savedDocument
+return savedDocument
+
+SVC -> MAPPER : toResponse(savedDocument)
+activate MAPPER
+return documentResponse
+
+return documentResponse
+
+CTRL --> USER : 201 Created\n{DocumentResponse}
+deactivate CTRL
+
+@enduml

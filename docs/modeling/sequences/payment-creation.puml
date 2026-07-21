@@ -1,0 +1,117 @@
+@startuml TrackWise_Seq_PaymentCreation
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+title **Sequence Diagram -- Register Payment (UC-05)**
+
+actor "End User" as USER
+participant "PaymentController" as CTRL
+participant "SecurityContext" as SEC
+participant "PaymentServiceImpl" as SVC
+participant "AssetService" as ASSET_SVC
+participant "CategoryService" as CAT_SVC
+participant "TagService" as TAG_SVC
+participant "RecurrenceRuleService" as REC_SVC
+participant "PaymentMapper" as MAPPER
+participant "PaymentRepository" as REPO
+database "PostgreSQL" as DB
+
+USER -> CTRL : POST /api/payments\n{CreatePaymentRequest}
+activate CTRL
+
+CTRL -> SEC : getCurrentUserId()
+activate SEC
+return userId
+
+CTRL -> SVC : createPayment(userId, request)
+activate SVC
+
+SVC -> SVC : validate(request)
+note right
+  Validate:
+  - amount > 0
+  - currency is valid ISO 4217
+  - dueDate is present (unless alreadyPaid)
+  - if recurring: recurrenceRule is present
+  - assetId and subscriptionId are
+    mutually optional (can have both, one, or none)
+end note
+
+== Optional: Resolve Asset Link ==
+
+opt request.assetId is provided
+  SVC -> ASSET_SVC : getAsset(userId, assetId)
+  activate ASSET_SVC
+  alt asset not found or wrong user
+    ASSET_SVC --> SVC : throw ResourceNotFoundException
+    SVC --> CTRL : propagate exception
+    CTRL --> USER : 404 Not Found
+  else
+    return assetResponse
+  end
+end
+
+== Optional: Resolve Category & Tags ==
+
+opt request.categoryId is provided
+  SVC -> CAT_SVC : getCategory(userId, categoryId)
+  activate CAT_SVC
+  return category
+end
+
+opt request.tagIds is provided
+  SVC -> TAG_SVC : getTagsByIds(userId, tagIds)
+  activate TAG_SVC
+  return Set<Tag>
+end
+
+== Optional: Create Recurrence Rule ==
+
+opt request.isRecurring == true
+  SVC -> REC_SVC : createRule(request.recurrenceRule)
+  activate REC_SVC
+  return recurrenceRule
+end
+
+== Create Payment Entity ==
+
+SVC -> MAPPER : toEntity(request, userId)
+activate MAPPER
+return payment
+
+SVC -> SVC : payment.setCategory(category)
+SVC -> SVC : payment.setTags(tags)
+SVC -> SVC : payment.setRecurrenceRule(recurrenceRule)
+
+alt request.alreadyPaid == true
+  SVC -> SVC : payment.markPaid(request.paymentDate)
+  note right : Status = PAID, paymentDate set
+else default
+  SVC -> SVC : payment.setStatus(PENDING)
+end
+
+SVC -> REPO : save(payment)
+activate REPO
+REPO -> DB : INSERT INTO payment
+activate DB
+return savedPayment
+return savedPayment
+
+SVC -> MAPPER : toResponse(savedPayment)
+activate MAPPER
+return paymentResponse
+
+return paymentResponse
+
+CTRL --> USER : 201 Created\n{PaymentResponse}
+deactivate CTRL
+
+@enduml
