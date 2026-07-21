@@ -1,0 +1,21 @@
+FROM eclipse-temurin:21-jdk
+
+WORKDIR /app
+
+# Copy maven executable to the image
+COPY mvnw .
+COPY .mvn .mvn
+
+# Copy the pom.xml file
+COPY pom.xml .
+
+# Download dependencies (this step is cached unless pom.xml changes)
+RUN ./mvnw dependency:go-offline -B
+
+# Copy the project source
+COPY src src
+
+EXPOSE 8080
+
+# Run Spring Boot
+CMD ["./mvnw", "spring-boot:run"]
