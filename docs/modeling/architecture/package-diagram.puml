@@ -1,0 +1,87 @@
+@startuml TrackWise_Package_Diagram
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam packageStyle folder
+
+title **TrackWise -- Java Package Structure (Package Diagram)**
+
+package "com.trackwise" {
+
+  package "common" #F3F4F6 {
+    note "Cross-cutting concerns\nused by all features" as N_Common
+    package "security" {
+      class JwtTokenProvider
+      class JwtAuthenticationFilter
+    }
+    package "money" {
+      class Money
+      class CurrencyValidator
+    }
+    package "exception" {
+      class GlobalExceptionHandler
+      class ResourceNotFoundException
+    }
+    package "pagination" {
+      class PageResponse
+    }
+    package "audit" {
+      class AuditLog
+    }
+  }
+
+  package "features" #E8F0FE {
+    note "Business modules organized\nby feature (domain-driven)" as N_Features
+    
+    package "user" {}
+    package "asset" {}
+    package "payment" {}
+    package "subscription" {}
+    package "document" {}
+    package "notification" {}
+    package "dashboard" {}
+    
+    package "shared" #FEF3C7 {
+      note "Shared features consumed\nby other modules" as N_Shared
+      package "classification" {}
+      package "scheduling" {}
+    }
+    
+    ' Internal structure of a typical feature package
+    package "asset (Internal Structure)" #FFFFFF {
+      package "controller" {
+        class AssetController
+      }
+      package "service" {
+        interface AssetService
+        class AssetServiceImpl
+      }
+      package "repository" {
+        interface AssetRepository
+      }
+      package "entity" {
+        class Asset
+      }
+      package "dto" {
+        class CreateAssetRequest
+        class AssetResponse
+      }
+      package "mapper" {
+        class AssetMapper
+      }
+      
+      controller ..> service : uses
+      service ..> repository : uses
+      service ..> mapper : uses
+      service ..> dto : uses/returns
+      mapper ..> entity : maps
+      repository ..> entity : manages
+    }
+  }
+}
+
+' Dependencies
+features ..> common : imports
+
+@enduml

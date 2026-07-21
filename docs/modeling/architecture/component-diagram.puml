@@ -1,0 +1,146 @@
+@startuml TrackWise_Component_Diagram
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 5
+skinparam componentStyle uml2
+
+skinparam component {
+  BackgroundColor #E8F0FE
+  BorderColor #1E3A8A
+}
+
+skinparam database {
+  BackgroundColor #F5F5F5
+  BorderColor #9CA3AF
+}
+
+skinparam cloud {
+  BackgroundColor #F5F5F5
+  BorderColor #9CA3AF
+}
+
+skinparam interface {
+  BackgroundColor #FFF8E1
+  BorderColor #F59E0B
+}
+
+title **TrackWise -- Final Component Diagram**
+
+' --- Clients ---
+actor "Mobile/Web Client" as Client
+
+' --- Infrastructure (External) ---
+database "PostgreSQL" as DB
+database "S3 / File System" as FS
+cloud "SMTP Email Service" as SMTP
+
+' --- TrackWise Application ---
+package "TrackWise Backend" {
+  
+  interface "REST API" as API
+
+  ' Core Business Components
+  component "Asset\nManagement" as Asset
+  component "Payment\nManagement" as Payment
+  component "Subscription\nManagement" as Subscription
+  component "Document\nManagement" as Document
+  component "Dashboard\n& Analytics" as Dashboard
+  
+  ' Identity & Security
+  component "User\nManagement" as UserMgmt
+  component "Auth &\nSecurity" as Auth
+  
+  ' Shared Services & Background
+  component "Classification\n(Categories/Tags)" as Classif
+  component "Scheduling\n(Recurrence)" as Sched
+  component "Notification\nEngine" as Notif
+  
+  ' ORM Layer
+  component "Data Access Layer\n(Spring Data JPA / Hibernate)" as JPA
+  
+  ' Interfaces exposed by components
+  interface "IUser" as I_User
+  interface "IAsset" as I_Asset
+  interface "IPayment" as I_Payment
+  interface "ISubscription" as I_Subscription
+  interface "IDocument" as I_Document
+  interface "IClassification" as I_Classif
+  interface "IScheduling" as I_Sched
+  interface "IPref" as I_Pref
+  
+  ' Bind interfaces to components
+  UserMgmt -up- I_User
+  Asset -up- I_Asset
+  Payment -up- I_Payment
+  Subscription -up- I_Subscription
+  Document -up- I_Document
+  Classif -up- I_Classif
+  Sched -up- I_Sched
+  Notif -up- I_Pref
+}
+
+' --- Client connections ---
+Client --> API
+API --> Auth : secured requests
+Auth --> UserMgmt : /api/users
+Auth --> Asset : /api/assets
+Auth --> Payment : /api/payments
+Auth --> Subscription : /api/subscriptions
+Auth --> Document : /api/documents
+Auth --> Dashboard : /api/dashboard
+Auth --> Notif : /api/notifications
+
+' --- Inter-component dependencies ---
+' Authentication needs User details
+Auth ..> I_User : loads user
+
+' Asset links
+Asset ..> I_Classif : uses categories/tags
+
+' Payment links
+Payment ..> I_Asset : optional link
+Payment ..> I_Subscription : optional link
+Payment ..> I_Classif : uses tags/categories
+Payment ..> I_Sched : uses recurrence
+
+' Subscription links
+Subscription ..> I_Asset : optional link
+Subscription ..> I_Classif : uses tags
+Subscription ..> I_Sched : uses recurrence\ncalculates next date
+
+' Document links
+Document ..> I_Asset : optional link
+Document ..> I_Payment : optional link
+Document ..> I_Subscription : optional link
+
+' Notification queries
+Notif ..> I_Payment : queries upcoming
+Notif ..> I_Subscription : queries upcoming
+Notif ..> I_Document : queries expiring
+Notif ..> I_User : gets email address
+
+' User Mgmt sets defaults
+UserMgmt ..> I_Pref : creates default preferences
+
+' Dashboard queries all
+Dashboard ..> I_Asset : reads
+Dashboard ..> I_Payment : reads
+Dashboard ..> I_Subscription : reads
+
+' --- Infrastructure Connections ---
+UserMgmt --> JPA
+Asset --> JPA
+Payment --> JPA
+Subscription --> JPA
+Document --> JPA
+Classif --> JPA
+Sched --> JPA
+Notif --> JPA
+
+JPA --> DB : JDBC/SQL
+
+Document --> FS : stores files
+Notif --> SMTP : sends emails
+
+@enduml
