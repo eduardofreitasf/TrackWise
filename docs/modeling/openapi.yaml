@@ -1,0 +1,973 @@
+openapi: 3.0.3
+info:
+  title: TrackWise API
+  version: 1.0.0
+  description: Complete API specification for TrackWise Personal Asset Management System.
+servers:
+  - url: https://api.trackwise.com/v1
+    description: Production server
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =================================================================
+  # AUTHENTICATION
+  # =================================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh JWT Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  # =================================================================
+  # USER
+  # =================================================================
+  /users/register:
+    post:
+      tags: [User]
+      summary: Register a new account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /users/me:
+    get:
+      tags: [User]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+    put:
+      tags: [User]
+      summary: Update user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+
+  # =================================================================
+  # ASSETS
+  # =================================================================
+  /assets:
+    get:
+      tags: [Asset]
+      summary: List assets
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortDirParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, ARCHIVED, SOLD, DISPOSED]
+      responses:
+        '200':
+          description: Paginated list of assets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AssetSummaryResponse'
+    post:
+      tags: [Asset]
+      summary: Register a new asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetRequest'
+      responses:
+        '201':
+          description: Asset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+
+  /assets/{id}:
+    get:
+      tags: [Asset]
+      summary: Get asset details
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Asset details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags: [Asset]
+      summary: Update asset
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssetRequest'
+      responses:
+        '200':
+          description: Asset updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+    delete:
+      tags: [Asset]
+      summary: Delete asset (Soft Delete)
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Asset deleted
+
+  /assets/{id}/status:
+    patch:
+      tags: [Asset]
+      summary: Change asset status (e.g., ARCHIVED, SOLD)
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, ARCHIVED, SOLD, DISPOSED]
+      responses:
+        '200':
+          description: Status updated
+
+  # =================================================================
+  # PAYMENTS
+  # =================================================================
+  /payments:
+    get:
+      tags: [Payment]
+      summary: List payments
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: assetId
+          in: query
+          schema:
+            type: integer
+        - name: subscriptionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated list of payments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PaymentSummaryResponse'
+    post:
+      tags: [Payment]
+      summary: Register a new payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /payments/{id}:
+    get:
+      tags: [Payment]
+      summary: Get payment details
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+    delete:
+      tags: [Payment]
+      summary: Delete payment
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Payment deleted
+
+  /payments/{id}/status:
+    patch:
+      tags: [Payment]
+      summary: Update payment status (e.g., mark as PAID)
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, PAID, OVERDUE, FAILED]
+                paymentDate:
+                  type: string
+                  format: date
+      responses:
+        '200':
+          description: Payment status updated
+
+  # =================================================================
+  # SUBSCRIPTIONS
+  # =================================================================
+  /subscriptions:
+    get:
+      tags: [Subscription]
+      summary: List subscriptions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated list of subscriptions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SubscriptionSummaryResponse'
+    post:
+      tags: [Subscription]
+      summary: Register a new subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+
+  /subscriptions/{id}:
+    get:
+      tags: [Subscription]
+      summary: Get subscription details
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+    delete:
+      tags: [Subscription]
+      summary: Delete subscription
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Subscription deleted
+
+  # =================================================================
+  # DOCUMENTS
+  # =================================================================
+  /documents:
+    get:
+      tags: [Document]
+      summary: List documents
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - name: assetId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Paginated list of documents
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DocumentSummaryResponse'
+    post:
+      tags: [Document]
+      summary: Upload a document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                metadata:
+                  type: string
+                  description: JSON string containing DocumentUploadRequest
+      responses:
+        '201':
+          description: Document uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentResponse'
+
+  /documents/{id}/download:
+    get:
+      tags: [Document]
+      summary: Download document file
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: File stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # =================================================================
+  # CLASSIFICATION (CATEGORIES & TAGS)
+  # =================================================================
+  /categories:
+    get:
+      tags: [Classification]
+      summary: List all categories for user
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+  /tags:
+    get:
+      tags: [Classification]
+      summary: List all tags for user
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TagResponse'
+
+  # =================================================================
+  # NOTIFICATIONS
+  # =================================================================
+  /notifications:
+    get:
+      tags: [Notification]
+      summary: List notifications
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      content:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/NotificationResponse'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notification]
+      summary: Mark a notification as read
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Marked as read
+
+  # =================================================================
+  # DASHBOARD
+  # =================================================================
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get financial and operational summary
+      responses:
+        '200':
+          description: Dashboard summary data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        default: 20
+    SortByParam:
+      name: sortBy
+      in: query
+      schema:
+        type: string
+        default: createdAt
+    SortDirParam:
+      name: sortDir
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+
+  responses:
+    ValidationError:
+      description: Bad Request (Validation failure)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFoundError:
+      description: Resource Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    # ---------------------------------------------
+    # COMMON
+    # ---------------------------------------------
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          example: "1500.50"
+        currency:
+          type: string
+          example: "EUR"
+
+    PaginatedResponse:
+      type: object
+      properties:
+        page:
+          type: object
+          properties:
+            size:
+              type: integer
+            number:
+              type: integer
+            totalElements:
+              type: integer
+            totalPages:
+              type: integer
+
+    RecurrenceRule:
+      type: object
+      properties:
+        frequency:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY, YEARLY]
+        interval:
+          type: integer
+        endDate:
+          type: string
+          format: date
+
+    # ---------------------------------------------
+    # AUTH / USER
+    # ---------------------------------------------
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          
+    RegisterRequest:
+      type: object
+      required: [firstName, lastName, email, password, defaultCurrency]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        defaultCurrency:
+          type: string
+          
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        tokenType:
+          type: string
+          example: "Bearer"
+          
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        defaultCurrency:
+          type: string
+
+    # ---------------------------------------------
+    # CLASSIFICATION
+    # ---------------------------------------------
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+          
+    TagResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    # ---------------------------------------------
+    # ASSET
+    # ---------------------------------------------
+    CreateAssetRequest:
+      type: object
+      required: [name, purchasePrice, purchaseCurrency]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+        tagIds:
+          type: array
+          items:
+            type: integer
+        purchaseDate:
+          type: string
+          format: date
+        purchasePrice:
+          type: string
+        purchaseCurrency:
+          type: string
+
+    AssetResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          $ref: '#/components/schemas/CategoryResponse'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/TagResponse'
+        purchaseDate:
+          type: string
+          format: date
+        purchasePrice:
+          $ref: '#/components/schemas/Money'
+        currentValue:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+          enum: [ACTIVE, ARCHIVED, SOLD, DISPOSED]
+
+    AssetSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+        purchasePrice:
+          $ref: '#/components/schemas/Money'
+
+    # ---------------------------------------------
+    # PAYMENT
+    # ---------------------------------------------
+    CreatePaymentRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+        currency:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        assetId:
+          type: integer
+        subscriptionId:
+          type: integer
+        isRecurring:
+          type: boolean
+        recurrenceRule:
+          $ref: '#/components/schemas/RecurrenceRule'
+        alreadyPaid:
+          type: boolean
+          
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          $ref: '#/components/schemas/Money'
+        dueDate:
+          type: string
+          format: date
+        paymentDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [PENDING, PAID, OVERDUE, FAILED]
+        assetName:
+          type: string
+        subscriptionName:
+          type: string
+          
+    PaymentSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          $ref: '#/components/schemas/Money'
+        dueDate:
+          type: string
+          format: date
+        status:
+          type: string
+
+    # ---------------------------------------------
+    # SUBSCRIPTION
+    # ---------------------------------------------
+    CreateSubscriptionRequest:
+      type: object
+      required: [name, costPerCycle, currency, recurrenceRule]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        assetId:
+          type: integer
+        costPerCycle:
+          type: string
+        currency:
+          type: string
+        recurrenceRule:
+          $ref: '#/components/schemas/RecurrenceRule'
+
+    SubscriptionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        costPerCycle:
+          $ref: '#/components/schemas/Money'
+        recurrenceRule:
+          $ref: '#/components/schemas/RecurrenceRule'
+        nextRenewalDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [ACTIVE, PAUSED, CANCELLED]
+
+    SubscriptionSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        costPerCycle:
+          $ref: '#/components/schemas/Money'
+        nextRenewalDate:
+          type: string
+          format: date
+
+    # ---------------------------------------------
+    # DOCUMENT
+    # ---------------------------------------------
+    DocumentSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        fileType:
+          type: string
+        expirationDate:
+          type: string
+          format: date
+
+    DocumentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: integer
+        expirationDate:
+          type: string
+          format: date
+        assetId:
+          type: integer
+        paymentId:
+          type: integer
+        subscriptionId:
+          type: integer
+        downloadUrl:
+          type: string
+
+    # ---------------------------------------------
+    # NOTIFICATION
+    # ---------------------------------------------
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+          enum: [UNREAD, READ]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ---------------------------------------------
+    # DASHBOARD
+    # ---------------------------------------------
+    DashboardSummaryResponse:
+      type: object
+      properties:
+        totalAssetsValue:
+          $ref: '#/components/schemas/Money'
+        upcomingPaymentsTotal:
+          $ref: '#/components/schemas/Money'
+        activeSubscriptionsCount:
+          type: integer
+        expiringDocumentsCount:
+          type: integer
