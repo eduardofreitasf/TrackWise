@@ -1,0 +1,75 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # Sync local frontend code with container for hot-reloading
+      - ./frontend:/app
+      # Prevent local node_modules from overwriting the container's node_modules
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - trackwise-network
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8080:8080"
+    volumes:
+      # Sync local backend code with container
+      - ./backend:/app
+      # Cache maven dependencies in a volume to avoid re-downloading
+      - maven-repo:/root/.m2
+    networks:
+      - trackwise-network
+    depends_on:
+      postgres:
+        condition: service_started
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/trackwise_db
+
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trackwise_user
+      POSTGRES_PASSWORD: trackwise_password
+      POSTGRES_DB: trackwise_db
+    ports:
+      # We mapped this to 5433 locally to prevent conflicts with your local PG
+      - "5433:5432"
+    networks:
+      - trackwise-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@trackwise.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    networks:
+      - trackwise-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+networks:
+  trackwise-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  maven-repo:
