@@ -2,32 +2,61 @@
 
 **TrackWise** is a comprehensive personal asset management system designed to help users organize, track, and manage their valuable assets, subscriptions, payments, and critical documents in one unified platform.
 
-## Overview
+## Project Structure
 
-Managing personal assets, subscriptions, and payments across multiple platforms often leads to scattered data, forgotten renewals, and missed deadlines. TrackWise aims to centralize the management of all personal financial commitments and assets into a single, intelligent, and organized platform.
+The project is structured as a multi-module repository:
 
-Key features include:
+*   **[`docs/`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/)**: Project proposition, requirements, subsystem architecture, and system modeling definitions.
+*   **[`app/backend/`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/app/backend/)**: Java 21 & Spring Boot backend REST API.
+*   **[`app/frontend/`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/app/frontend/)**: React, TypeScript, and Vite frontend workspace (boilerplate).
 
-- **Asset Management**: Register and track cars, properties, appliances, and other valuable assets with complete historical and future payment data.
-- **Subscription Management**: Monitor recurring service subscriptions (Netflix, Spotify, etc.) with renewal tracking and financial analytics.
-- **Payment Management**: Log and organize one-time and recurring payments, categorize expenses, and maintain a complete financial history.
-- **Document Management**: Store, organize, and retrieve critical documents (registrations, insurance policies, receipts, warranties) with expiration tracking.
-- **Smart Notifications**: Receive timely alerts for upcoming payments, subscription renewals, and document expirations based on your preferences.
-- **Financial Dashboard & Analytics**: View comprehensive reports on spending patterns, asset costs, payment history, and financial trends over time.
-- **Multi-User System**: Secure, isolated user accounts with complete data separation and independent asset management.
-- **Administrative Backoffice**: System administrators can manage user accounts and view system statistics without accessing individual user data.
+---
+
+## Getting Started
+
+### Prerequisites
+
+*   Docker and Docker Compose
+*   Java Development Kit (JDK) 21 (for backend development)
+*   Node.js (for frontend development)
+
+### Running the Entire Stack (Local Dev)
+
+From the `app/` directory, run:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+*   **Backend API** at `http://localhost:8080`
+*   **Frontend UI** at `http://localhost:5173`
+*   **PostgreSQL** at `localhost:5433` (accessible inside the docker network on port 5432)
+*   **pgAdmin** at `http://localhost:5050` (credentials: `admin@trackwise.com` / `admin`)
+
+---
 
 ## Documentation
 
-- **Requirements:** The comprehensive Project Proposition and Requirements Document can be found in [`proposal.pdf`](docs/proposal/roposal.pdf).
-- **System Modeling:** Future system modeling artifacts (such as UML Class Diagrams, Entity-Relationship Diagrams, and API specifications) will be stored in the [`docs/`](docs/) directory prior to the implementation phase.
+*   **Requirements:** The comprehensive Project Proposition and Requirements Document can be found in [`proposal.tex`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/proposal/proposal.tex).
+*   **System Modeling:** Diagrams and specifications are located in the [`docs/modeling/`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/modeling/) directory:
+    *   [`domain-model.puml`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/modeling/domain-model.puml): Domain concepts and logic.
+    *   [`er-diagram.puml`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/modeling/er-diagram.puml): Entity-relationship definitions.
+    *   [`openapi.yaml`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/modeling/openapi.yaml): API specification.
+    *   [`subsystem-identification.md`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/docs/modeling/subsystem-identification.md): Core subsystems analysis.
 
-## Technology Stack (Planned)
+---
 
-- **Backend:** Java with Spring Boot framework
-- **Database:** PostgreSQL or MySQL (relational database with proper indexing and partitioning)
-- **Authentication:** JWT-based token authentication with bcrypt password hashing
-- **File Storage:** Cloud-based or on-premise file storage with encryption and access controls
-- **Notification System:** Scheduled background jobs for notification evaluation; email service for delivery
-- **Frontend:** Responsive web application aligned to TrackWise brand identity
-- *(Additional tech stack details to be determined during implementation)*
+## Technology Stack
+
+*   **Backend:** Java 21, Spring Boot, Spring Security, Spring Data JPA, Hibernate, JWT.
+*   **Database:** PostgreSQL with Flyway database migration scripts.
+*   **Frontend:** React, TypeScript, Vite.
+*   **CI/CD:** GitHub Actions for formatting, compilation, and testing.
+
+---
+
+## Contribution and Security
+
+*   See [`CONTRIBUTING.md`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/CONTRIBUTING.md) for style conventions, formatting commands, and branch strategies.
+*   See [`SECURITY.md`](file:///c:/Users/ASUS/Desktop/eduardo/projects/TrackWise/SECURITY.md) for vulnerability reporting procedures.
