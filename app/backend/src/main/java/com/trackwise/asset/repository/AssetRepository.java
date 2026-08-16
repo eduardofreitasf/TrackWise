@@ -13,7 +13,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     Page<Asset> findAllByUserIdAndDeletedAtIsNull(Long userId, Pageable pageable);
 
-    Page<Asset> findAllByUserIdAndStatusAndDeletedAtIsNull(Long userId, AssetStatus status, Pageable pageable);
+    Page<Asset> findAllByUserIdAndStatusAndDeletedAtIsNull(
+            Long userId, AssetStatus status, Pageable pageable);
 
     Optional<Asset> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
 }

@@ -28,9 +28,7 @@ public class CreateAssetRequest {
 
     private LocalDate purchaseDate;
 
-    @Valid
-    private MoneyDto purchasePrice;
+    @Valid private MoneyDto purchasePrice;
 
-    @Valid
-    private MoneyDto currentValue;
+    @Valid private MoneyDto currentValue;
 }

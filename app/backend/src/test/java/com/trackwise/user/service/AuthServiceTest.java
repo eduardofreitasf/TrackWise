@@ -33,23 +33,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @Mock
-    private JwtService jwtService;
+    @Mock private JwtService jwtService;
 
-    @Mock
-    private AuthenticationManager authenticationManager;
+    @Mock private AuthenticationManager authenticationManager;
 
-    @Mock
-    private UserDetailsService userDetailsService;
+    @Mock private UserDetailsService userDetailsService;
 
-    @InjectMocks
-    private AuthService authService;
+    @InjectMocks private AuthService authService;
 
     private RegisterRequest registerRequest;
     private LoginRequest loginRequest;
@@ -58,41 +52,43 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        registerRequest = RegisterRequest.builder()
-                .firstName("John")
-                .lastName("Doe")
-                .email("john.doe@example.com")
-                .password("password123")
-                .defaultCurrency("USD")
-                .build();
+        registerRequest =
+                RegisterRequest.builder()
+                        .firstName("John")
+                        .lastName("Doe")
+                        .email("john.doe@example.com")
+                        .password("password123")
+                        .defaultCurrency("USD")
+                        .build();
 
-        loginRequest = LoginRequest.builder()
-                .email("john.doe@example.com")
-                .password("password123")
-                .build();
+        loginRequest =
+                LoginRequest.builder()
+                        .email("john.doe@example.com")
+                        .password("password123")
+                        .build();
 
-        user = User.builder()
-                .email("john.doe@example.com")
-                .passwordHash("encodedPassword")
-                .firstName("John")
-                .lastName("Doe")
-                .defaultCurrency("USD")
-                .status(UserStatus.ACTIVE)
-                .build();
+        user =
+                User.builder()
+                        .email("john.doe@example.com")
+                        .passwordHash("encodedPassword")
+                        .firstName("John")
+                        .lastName("Doe")
+                        .defaultCurrency("USD")
+                        .status(UserStatus.ACTIVE)
+                        .build();
         user.setId(1L);
 
-        userDetails = new org.springframework.security.core.userdetails.User(
-                "john.doe@example.com",
-                "encodedPassword",
-                Collections.emptyList()
-        );
+        userDetails =
+                new org.springframework.security.core.userdetails.User(
+                        "john.doe@example.com", "encodedPassword", Collections.emptyList());
     }
 
     @Test
     void register_ShouldCreateUser_WhenEmailDoesNotExist() {
         when(userRepository.existsByEmail(registerRequest.getEmail())).thenReturn(false);
         when(passwordEncoder.encode(registerRequest.getPassword())).thenReturn("encodedPassword");
-        when(userDetailsService.loadUserByUsername(registerRequest.getEmail())).thenReturn(userDetails);
+        when(userDetailsService.loadUserByUsername(registerRequest.getEmail()))
+                .thenReturn(userDetails);
         when(jwtService.generateToken(userDetails)).thenReturn("accessToken");
         when(jwtService.generateRefreshToken(userDetails)).thenReturn("refreshToken");
 
@@ -117,7 +113,8 @@ class AuthServiceTest {
     @Test
     void login_ShouldReturnTokens_WhenCredentialsAreValid() {
         when(userRepository.findByEmail(loginRequest.getEmail())).thenReturn(Optional.of(user));
-        when(userDetailsService.loadUserByUsername(loginRequest.getEmail())).thenReturn(userDetails);
+        when(userDetailsService.loadUserByUsername(loginRequest.getEmail()))
+                .thenReturn(userDetails);
         when(jwtService.generateToken(userDetails)).thenReturn("accessToken");
         when(jwtService.generateRefreshToken(userDetails)).thenReturn("refreshToken");
 

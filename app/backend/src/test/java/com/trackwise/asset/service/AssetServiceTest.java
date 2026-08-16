@@ -31,20 +31,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class AssetServiceTest {
 
-    @Mock
-    private AssetRepository assetRepository;
+    @Mock private AssetRepository assetRepository;
 
-    @Mock
-    private CategoryRepository categoryRepository;
+    @Mock private CategoryRepository categoryRepository;
 
-    @Mock
-    private TagRepository tagRepository;
+    @Mock private TagRepository tagRepository;
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @InjectMocks
-    private AssetService assetService;
+    @InjectMocks private AssetService assetService;
 
     private User user;
     private Asset asset;
@@ -52,33 +47,39 @@ class AssetServiceTest {
 
     @BeforeEach
     void setUp() {
-        user = User.builder()
-                .email("user@example.com")
-                .firstName("John")
-                .lastName("Doe")
-                .build();
+        user = User.builder().email("user@example.com").firstName("John").lastName("Doe").build();
         user.setId(1L);
 
-        createRequest = CreateAssetRequest.builder()
-                .name("MacBook Pro")
-                .description("Work laptop")
-                .purchaseDate(LocalDate.of(2023, 1, 15))
-                .purchasePrice(MoneyDto.builder().amount(new BigDecimal("2499.99")).currency("USD").build())
-                .currentValue(MoneyDto.builder().amount(new BigDecimal("2000.00")).currency("USD").build())
-                .build();
+        createRequest =
+                CreateAssetRequest.builder()
+                        .name("MacBook Pro")
+                        .description("Work laptop")
+                        .purchaseDate(LocalDate.of(2023, 1, 15))
+                        .purchasePrice(
+                                MoneyDto.builder()
+                                        .amount(new BigDecimal("2499.99"))
+                                        .currency("USD")
+                                        .build())
+                        .currentValue(
+                                MoneyDto.builder()
+                                        .amount(new BigDecimal("2000.00"))
+                                        .currency("USD")
+                                        .build())
+                        .build();
 
-        asset = Asset.builder()
-                .user(user)
-                .name("MacBook Pro")
-                .description("Work laptop")
-                .purchaseDate(LocalDate.of(2023, 1, 15))
-                .purchasePrice(new BigDecimal("2499.99"))
-                .purchaseCurrency("USD")
-                .currentValue(new BigDecimal("2000.00"))
-                .currentValueCurrency("USD")
-                .status(AssetStatus.ACTIVE)
-                .tags(Collections.emptySet())
-                .build();
+        asset =
+                Asset.builder()
+                        .user(user)
+                        .name("MacBook Pro")
+                        .description("Work laptop")
+                        .purchaseDate(LocalDate.of(2023, 1, 15))
+                        .purchasePrice(new BigDecimal("2499.99"))
+                        .purchaseCurrency("USD")
+                        .currentValue(new BigDecimal("2000.00"))
+                        .currentValueCurrency("USD")
+                        .status(AssetStatus.ACTIVE)
+                        .tags(Collections.emptySet())
+                        .build();
         asset.setId(100L);
     }
 
@@ -99,7 +100,8 @@ class AssetServiceTest {
     @Test
     void getAssetById_ShouldReturnAsset_WhenExists() {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
-        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L)).thenReturn(Optional.of(asset));
+        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L))
+                .thenReturn(Optional.of(asset));
 
         AssetResponse response = assetService.getAssetById("user@example.com", 100L);
 
@@ -111,7 +113,8 @@ class AssetServiceTest {
     @Test
     void getAssetById_ShouldThrowException_WhenNotFoundOrNotOwned() {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
-        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L)).thenReturn(Optional.empty());
+        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> assetService.getAssetById("user@example.com", 100L))
                 .isInstanceOf(ResourceNotFoundException.class)
@@ -121,7 +124,8 @@ class AssetServiceTest {
     @Test
     void deleteAsset_ShouldSetDeletedAt_WhenAssetExists() {
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
-        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L)).thenReturn(Optional.of(asset));
+        when(assetRepository.findByIdAndUserIdAndDeletedAtIsNull(100L, 1L))
+                .thenReturn(Optional.of(asset));
 
         assetService.deleteAsset("user@example.com", 100L);
 

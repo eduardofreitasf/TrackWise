@@ -36,8 +36,7 @@ public class AssetController {
     @PostMapping
     public ResponseEntity<AssetResponse> createAsset(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody CreateAssetRequest request
-    ) {
+            @Valid @RequestBody CreateAssetRequest request) {
         AssetResponse response = assetService.createAsset(userDetails.getUsername(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -46,17 +45,16 @@ public class AssetController {
     public ResponseEntity<Page<AssetResponse>> getAssets(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) AssetStatus status,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        Page<AssetResponse> assets = assetService.getAssets(userDetails.getUsername(), status, pageable);
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+                    Pageable pageable) {
+        Page<AssetResponse> assets =
+                assetService.getAssets(userDetails.getUsername(), status, pageable);
         return ResponseEntity.ok(assets);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<AssetResponse> getAssetById(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @PathVariable Long id
-    ) {
+            @AuthenticationPrincipal UserDetails userDetails, @PathVariable Long id) {
         AssetResponse asset = assetService.getAssetById(userDetails.getUsername(), id);
         return ResponseEntity.ok(asset);
     }
@@ -65,8 +63,7 @@ public class AssetController {
     public ResponseEntity<AssetResponse> updateAsset(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id,
-            @Valid @RequestBody CreateAssetRequest request
-    ) {
+            @Valid @RequestBody CreateAssetRequest request) {
         AssetResponse updated = assetService.updateAsset(userDetails.getUsername(), id, request);
         return ResponseEntity.ok(updated);
     }
@@ -75,17 +72,15 @@ public class AssetController {
     public ResponseEntity<AssetResponse> updateAssetStatus(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id,
-            @Valid @RequestBody UpdateAssetStatusRequest request
-    ) {
-        AssetResponse updated = assetService.updateAssetStatus(userDetails.getUsername(), id, request.getStatus());
+            @Valid @RequestBody UpdateAssetStatusRequest request) {
+        AssetResponse updated =
+                assetService.updateAssetStatus(userDetails.getUsername(), id, request.getStatus());
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAsset(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @PathVariable Long id
-    ) {
+            @AuthenticationPrincipal UserDetails userDetails, @PathVariable Long id) {
         assetService.deleteAsset(userDetails.getUsername(), id);
         return ResponseEntity.noContent().build();
     }

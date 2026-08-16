@@ -16,13 +16,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
 
-    @Value("${application.security.jwt.secret-key:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
+    @Value(
+            "${application.security.jwt.secret-key:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
     private String secretKey;
 
     @Value("${application.security.jwt.expiration:86400000}") // 24 hours in milliseconds
     private long jwtExpiration;
 
-    @Value("${application.security.jwt.refresh-token.expiration:604800000}") // 7 days in milliseconds
+    @Value("${application.security.jwt.refresh-token.expiration:604800000}") // 7 days in
+    // milliseconds
     private long refreshExpiration;
 
     public String extractUsername(String token) {
@@ -47,10 +49,7 @@ public class JwtService {
     }
 
     private String buildToken(
-            Map<String, Object> extraClaims,
-            UserDetails userDetails,
-            long expiration
-    ) {
+            Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
         return Jwts.builder()
                 .claims(extraClaims)
                 .subject(userDetails.getUsername())

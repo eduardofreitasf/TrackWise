@@ -71,7 +71,6 @@ public class Asset extends BaseEntity {
     @JoinTable(
             name = "asset_tag",
             joinColumns = @JoinColumn(name = "asset_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<Tag> tags = new HashSet<>();
 }

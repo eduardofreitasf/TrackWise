@@ -32,17 +32,19 @@ public class AuthService {
     @Transactional
     public TokenResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BusinessException("User with email " + request.getEmail() + " already exists");
+            throw new BusinessException(
+                    "User with email " + request.getEmail() + " already exists");
         }
 
-        User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .defaultCurrency(request.getDefaultCurrency().toUpperCase())
-                .status(UserStatus.ACTIVE)
-                .build();
+        User user =
+                User.builder()
+                        .firstName(request.getFirstName())
+                        .lastName(request.getLastName())
+                        .email(request.getEmail())
+                        .passwordHash(passwordEncoder.encode(request.getPassword()))
+                        .defaultCurrency(request.getDefaultCurrency().toUpperCase())
+                        .status(UserStatus.ACTIVE)
+                        .build();
 
         userRepository.save(user);
 
@@ -60,14 +62,12 @@ public class AuthService {
     @Transactional
     public TokenResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user =
+                userRepository
+                        .findByEmail(request.getEmail())
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
@@ -85,8 +85,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User user =
+                userRepository
+                        .findByEmail(email)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return UserProfileResponse.builder()
                 .id(user.getId())

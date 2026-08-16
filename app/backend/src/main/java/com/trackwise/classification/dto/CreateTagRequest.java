@@ -18,6 +18,8 @@ public class CreateTagRequest {
     @Size(max = 50, message = "Name cannot exceed 50 characters")
     private String name;
 
-    @Pattern(regexp = "^#([A-Fa-f0-9]{6})$", message = "Color must be a valid 6-character hex string (e.g. #FF5733)")
+    @Pattern(
+            regexp = "^#([A-Fa-f0-9]{6})$",
+            message = "Color must be a valid 6-character hex string (e.g. #FF5733)")
     private String color;
 }
