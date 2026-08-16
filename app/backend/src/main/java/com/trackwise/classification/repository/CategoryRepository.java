@@ -12,7 +12,10 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findAllByUserIdAndDeletedAtIsNull(Long userId);
 
-    List<Category> findAllByUserIdAndEntityTypeAndDeletedAtIsNull(Long userId, CategoryEntityType entityType);
+    List<Category> findAllByUserIdAndEntityTypeAndDeletedAtIsNull(
+            Long userId, CategoryEntityType entityType);
 
     Optional<Category> findByIdAndUserIdAndDeletedAtIsNull(Long id, Long userId);
+
+    boolean existsByParentIdAndDeletedAtIsNull(Long parentId);
 }
